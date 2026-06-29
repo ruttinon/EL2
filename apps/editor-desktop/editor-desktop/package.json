@@ -1,0 +1,41 @@
+{
+  "name": "@energylink/editor-desktop",
+  "version": "0.15.0-phase15",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -p tsconfig.json && vite build && tsc -p tsconfig.electron.json",
+    "preview": "vite preview",
+    "package:dir": "electron-builder --dir --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@energylink/unified-viewport": "workspace:*",
+    "@energylink/graphics-runtime": "workspace:*",
+    "@energylink/shared-data": "workspace:*",
+    "@energylink/shared-types": "workspace:*",
+    "@energylink/widget-registry": "workspace:*",
+    "@energylink/shared-ui": "workspace:*",
+    "@iconify/react": "^6.0.2",
+    "@prisma/client": "^5.0.0",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@splinetool/react-spline": "^4.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^39.8.6",
+    "lucide-react": "^1.17.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "three": "^0.184.0",
+    "vite": "^6.4.3",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.9.3"
+  }
+}

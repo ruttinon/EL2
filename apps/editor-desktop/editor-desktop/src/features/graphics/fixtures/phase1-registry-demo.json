@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "name": "Phase1 Registry Demo",
+  "width": 1366,
+  "height": 768,
+  "layout": {
+    "version": 1,
+    "pageKind": "canvas",
+    "backgroundColor": "#0f172a",
+    "objects": [
+      {
+        "id": "obj_value_demo",
+        "type": "value",
+        "name": "Power_kW",
+        "text": "Active Power",
+        "x": 40,
+        "y": 40,
+        "width": 190,
+        "height": 72,
+        "visible": true,
+        "locked": false,
+        "layer": 1,
+        "tagId": "tag_active_power",
+        "binding": {
+          "tagId": "tag_active_power",
+          "unit": "kW",
+          "decimalPlaces": 2
+        },
+        "style": {
+          "transparentBg": true,
+          "fill": "transparent",
+          "color": "#e2e8f0",
+          "unit": "kW",
+          "decimalPlaces": 2,
+          "valueVariant": "minimal",
+          "fontSize": 18
+        }
+      },
+      {
+        "id": "obj_gauge_demo",
+        "type": "gauge",
+        "name": "SOC_Gauge",
+        "text": "Battery SOC",
+        "x": 280,
+        "y": 30,
+        "width": 180,
+        "height": 120,
+        "layer": 2,
+        "tagId": "tag_battery_soc",
+        "binding": {
+          "tagId": "tag_battery_soc",
+          "unit": "%",
+          "decimalPlaces": 1,
+          "min": 0,
+          "max": 100
+        },
+        "style": {
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "fill": "#ffffff"
+        },
+        "animations": [
+          {
+            "id": "anim_gauge_low",
+            "when": { "op": "tag", "tagId": "tag_battery_soc", "cmp": "lt", "value": 20 },
+            "kind": "color",
+            "options": { "color": "#ef4444" }
+          }
+        ]
+      },
+      {
+        "id": "obj_status_lamp_demo",
+        "type": "status",
+        "name": "Pump_Running_Status",
+        "deviceId": "device_pump_01",
+        "x": 520,
+        "y": 52,
+        "width": 40,
+        "height": 40,
+        "layer": 3,
+        "tagId": "tag_pump_run",
+        "binding": { "tagId": "tag_pump_run" },
+        "style": {
+          "statusVariant": "lamp",
+          "onColor": "#22c55e",
+          "offColor": "#475569",
+          "fill": "#1e293b"
+        },
+        "actions": [
+          {
+            "tagId": "tag_pump_run",
+            "min": 1,
+            "max": 999999,
+            "type": "blink",
+            "options": { "fillA": "#22c55e", "fillB": "#14532d", "interval": 500 }
+          }
+        ]
+      },
+      {
+        "id": "obj_status_badge_demo",
+        "type": "status",
+        "name": "Meter_Comm_Status",
+        "deviceId": "device_meter_main",
+        "text": "Online",
+        "x": 600,
+        "y": 48,
+        "width": 130,
+        "height": 40,
+        "layer": 4,
+        "tagId": "tag_meter_comm",
+        "binding": { "tagId": "tag_meter_comm" },
+        "style": {
+          "statusVariant": "badge",
+          "badgeMap": "0:Offline:#94a3b8,1:Online:#22c55e,2:Fault:#ef4444"
+        }
+      },
+      {
+        "id": "obj_button_demo",
+        "type": "button",
+        "name": "Start_Pump",
+        "text": "START",
+        "x": 40,
+        "y": 160,
+        "width": 160,
+        "height": 54,
+        "layer": 5,
+        "tagId": "tag_pump_cmd",
+        "binding": { "tagId": "tag_pump_cmd" },
+        "style": {
+          "fill": "#ec4899",
+          "background": "#ec4899",
+          "color": "#ffffff",
+          "stroke": "#db2777",
+          "fontSize": 14,
+          "writeValue": "1",
+          "confirmWrite": true
+        },
+        "interactions": [
+          {
+            "id": "ix_start_pump",
+            "trigger": "click",
+            "actions": [
+              {
+                "type": "confirm",
+                "message": "สตาร์ทปั๊ม?",
+                "actions": [
+                  { "type": "writeTag", "tagId": "tag_pump_cmd", "value": true, "dataType": "bool" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "obj_elec_demo",
+        "type": "elecsymbol",
+        "name": "CB_Main",
+        "text": "CB-01",
+        "x": 280,
+        "y": 180,
+        "width": 72,
+        "height": 72,
+        "layer": 6,
+        "tagId": "tag_breaker_state",
+        "binding": { "tagId": "tag_breaker_state" },
+        "style": {
+          "symbolId": "breaker",
+          "stroke": "#f59e0b",
+          "strokeWidth": 1,
+          "color": "#142033",
+          "fontSize": 12
+        }
+      }
+    ]
+  }
+}

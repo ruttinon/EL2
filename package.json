@@ -1,0 +1,76 @@
+{
+  "name": "energylink-management",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EnergyLink Management v1.0 Release Package - Desktop SCADA/EMS platform.",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:editor": "pnpm --filter @energylink/editor-desktop dev",
+    "dev:monitor": "pnpm --filter @energylink/monitor-desktop dev",
+    "dev:engine": "pnpm --filter @energylink/engine dev",
+    "build": "pnpm -r build",
+    "pack:layout": "node scripts/create-install-layout.mjs",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --name phase15_clean_audit",
+    "db:deploy": "prisma migrate deploy",
+    "db:repair": "node scripts/repair-db-migrations.mjs",
+    "db:studio": "prisma studio",
+    "build:engine": "pnpm --filter @energylink/engine build",
+    "build:editor": "pnpm --filter @energylink/editor-desktop build",
+    "build:monitor": "pnpm --filter @energylink/monitor-desktop build",
+    "build:web": "pnpm --filter @energylink/web-viewer build",
+    "package:editor": "pnpm --filter @energylink/editor-desktop package:dir",
+    "package:monitor": "pnpm --filter @energylink/monitor-desktop package:dir",
+    "build:release": "node scripts/build-release.mjs",
+    "audit": "node scripts/audit-project.mjs",
+    "handoff:manifest": "node scripts/create-release-manifest.mjs",
+    "verify:windows": "powershell -ExecutionPolicy Bypass -File release/scripts/verify-windows-build-env.ps1",
+    "build:windows-release": "powershell -ExecutionPolicy Bypass -File release/scripts/build-windows-release.ps1",
+    "package:installer": "powershell -ExecutionPolicy Bypass -File release/scripts/compile-inno-installer.ps1",
+    "dev:engine-manager": "pnpm --filter @energylink/engine-manager-desktop dev",
+    "build:engine-manager": "pnpm --filter @energylink/engine-manager-desktop build",
+    "package:engine-manager": "pnpm --filter @energylink/engine-manager-desktop package:dir",
+    "dev:web": "pnpm --filter @energylink/web-viewer dev",
+    "dev:monitor-web": "pnpm --filter monitor-web dev",
+    "rc:prepare": "node scripts/prepare-final-release-candidate.mjs",
+    "rc:audit": "node scripts/audit-project.mjs",
+    "test:windows-smoke": "powershell -ExecutionPolicy Bypass -File release/scripts/run-windows-smoke-tests.ps1",
+    "verify:installed-layout": "powershell -ExecutionPolicy Bypass -File release/scripts/verify-installed-layout.ps1",
+    "collect:diagnostics": "powershell -ExecutionPolicy Bypass -File release/scripts/collect-diagnostics.ps1",
+    "release:v1-manifest": "node scripts/create-v1-release-package.mjs",
+    "release:v1-audit": "node scripts/audit-project.mjs",
+    "start:local": "powershell -ExecutionPolicy Bypass -File tools/windows/start-energylink-local.ps1",
+    "start:editor": "powershell -ExecutionPolicy Bypass -File tools/windows/start-editor.ps1",
+    "start:engine": "powershell -ExecutionPolicy Bypass -File tools/windows/start-engine.ps1",
+    "start:monitor": "powershell -ExecutionPolicy Bypass -File tools/windows/start-monitor.ps1",
+    "start:web-viewer": "powershell -ExecutionPolicy Bypass -File tools/windows/start-web-viewer.ps1",
+    "check:local": "powershell -ExecutionPolicy Bypass -File tools/windows/check-local-ready.ps1",
+    "qa:functions": "node scripts/check-function-coverage.mjs",
+    "qa:local": "pnpm audit && pnpm run audit && pnpm qa:functions && pnpm qa:build && pnpm test:scene-builder",
+    "qa:build": "node scripts/check-build-qa.mjs",
+    "test:scene-builder": "pnpm --filter @energylink/graphics-runtime test"
+  },
+  "workspaces": [
+    "apps/**",
+    "packages/**"
+  ],
+  "devDependencies": {
+    "electron-builder": "^26.0.12",
+    "prisma": "^5.22.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@iconify/react": "^6.0.2",
+    "@prisma/client": "5.22.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "^11.1.1",
+      "electron": "^39.8.6",
+      "vite": "^6.4.3",
+      "esbuild": "^0.25.0",
+      "fastify": "^5.8.3",
+      "tar": "^7.5.11"
+    }
+  }
+}

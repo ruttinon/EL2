@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@energylink/shared-types": [
+        "packages/shared-types/src/index.ts"
+      ],
+      "@energylink/shared-ui": [
+        "packages/shared-ui/src/index.ts"
+      ],
+      "@energylink/shared-data": [
+        "packages/shared-data/src/index.ts"
+      ]
+    }
+  }
+}

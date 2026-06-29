@@ -1,0 +1,15 @@
+{
+  "engineName": "EnergyLink Local Engine",
+  "port": 8081,
+  "apiHost": "0.0.0.0",
+  "database": "C:/ProgramData/EnergyLink Management/data/energylink.db",
+  "dataFolder": "C:/ProgramData/EnergyLink Management/data",
+  "logFolder": "C:/ProgramData/EnergyLink Management/logs",
+  "graphicsFolder": "C:/ProgramData/EnergyLink Management/graphics",
+  "reportsFolder": "C:/ProgramData/EnergyLink Management/reports",
+  "imagesFolder": "C:/ProgramData/EnergyLink Management/images",
+  "backupsFolder": "C:/ProgramData/EnergyLink Management/backups",
+  "autoStart": true,
+  "logLevel": "info",
+  "serviceMode": true
+}

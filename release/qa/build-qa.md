@@ -1,0 +1,86 @@
+# EnergyLink Round 14 Build QA Result
+
+Generated: 2026-06-19T17:14:20.595Z
+
+PASS: 78
+WARN: 0
+FAIL: 0
+
+- PASS: root script exists: dev:engine
+- PASS: root script exists: dev:editor
+- PASS: root script exists: dev:monitor
+- PASS: root script exists: dev:web
+- PASS: root script exists: build
+- PASS: root script exists: build:engine
+- PASS: root script exists: build:editor
+- PASS: root script exists: build:monitor
+- PASS: root script exists: build:web
+- PASS: root script exists: audit
+- PASS: root script exists: qa:functions
+- PASS: root script exists: qa:local
+- PASS: root build runs workspace builds
+- PASS: workspace directory exists: apps/editor-desktop
+- PASS: workspace package name: @energylink/editor-desktop
+- PASS: @energylink/editor-desktop script exists: dev
+- PASS: @energylink/editor-desktop script exists: build
+- PASS: file exists: apps/editor-desktop/src/App.tsx
+- PASS: file exists: apps/editor-desktop/src/main.tsx
+- PASS: file exists: apps/editor-desktop/tsconfig.json
+- PASS: file exists: apps/editor-desktop/vite.config.ts
+- PASS: workspace directory exists: apps/monitor-desktop
+- PASS: workspace package name: @energylink/monitor-desktop
+- PASS: @energylink/monitor-desktop script exists: dev
+- PASS: @energylink/monitor-desktop script exists: build
+- PASS: file exists: apps/monitor-desktop/src/App.tsx
+- PASS: file exists: apps/monitor-desktop/src/main.tsx
+- PASS: file exists: apps/monitor-desktop/tsconfig.json
+- PASS: file exists: apps/monitor-desktop/vite.config.ts
+- PASS: workspace directory exists: apps/engine
+- PASS: workspace package name: @energylink/engine
+- PASS: @energylink/engine script exists: dev
+- PASS: @energylink/engine script exists: build
+- PASS: file exists: apps/engine/src/index.ts
+- PASS: file exists: apps/engine/tsconfig.json
+- PASS: workspace directory exists: apps/web-viewer
+- PASS: workspace package name: @energylink/web-viewer
+- PASS: @energylink/web-viewer script exists: dev
+- PASS: @energylink/web-viewer script exists: build
+- PASS: file exists: apps/web-viewer/src/App.tsx
+- PASS: file exists: apps/web-viewer/src/main.tsx
+- PASS: file exists: apps/web-viewer/tsconfig.json
+- PASS: file exists: apps/web-viewer/vite.config.ts
+- PASS: no blocked source pattern: LoginGate usage in runtime apps
+- PASS: no blocked source pattern: password UI field in runtime apps
+- PASS: no blocked source pattern: mock simulator fake runtime naming
+- PASS: App export exists: apps/editor-desktop/src/App.tsx
+- PASS: LoginGate not referenced: apps/editor-desktop/src/App.tsx
+- PASS: App export exists: apps/monitor-desktop/src/App.tsx
+- PASS: LoginGate not referenced: apps/monitor-desktop/src/App.tsx
+- PASS: App export exists: apps/web-viewer/src/App.tsx
+- PASS: LoginGate not referenced: apps/web-viewer/src/App.tsx
+- PASS: commandBus exists - apps/editor-desktop/src/commandBus.ts
+- PASS: editor command implemented or routed: New
+- PASS: editor command implemented or routed: Open
+- PASS: editor command implemented or routed: Save
+- PASS: editor command implemented or routed: Import
+- PASS: editor command implemented or routed: Export
+- PASS: editor command implemented or routed: Add Converter
+- PASS: editor command implemented or routed: Add Meter
+- PASS: editor command implemented or routed: Add Tag
+- PASS: editor command implemented or routed: Modify
+- PASS: editor command implemented or routed: Delete
+- PASS: editor command implemented or routed: New Graphic
+- PASS: editor command implemented or routed: Set Default
+- PASS: editor command implemented or routed: Object Tools
+- PASS: editor command implemented or routed: Bind Tag
+- PASS: editor command implemented or routed: Validate
+- PASS: editor command implemented or routed: Preview
+- PASS: editor command implemented or routed: Export PDF
+- PASS: editor command implemented or routed: Export Excel
+- PASS: editor command implemented or routed: Print
+- PASS: editor command implemented or routed: Preferences
+- PASS: editor command implemented or routed: Units
+- PASS: editor command implemented or routed: Styles
+- PASS: editor command implemented or routed: Images
+- PASS: editor command implemented or routed: Database
+- PASS: editor command implemented or routed: Backup

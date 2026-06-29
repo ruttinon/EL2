@@ -1,0 +1,30 @@
+{
+  "name": "@energylink/unified-viewport",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {
+    "@energylink/graphics-runtime": "workspace:*",
+    "@energylink/shared-types": "workspace:*",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@splinetool/react-spline": "^4.1.0",
+    "three": "^0.170.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsx src/migrate/layoutV1ToV2.test.ts"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/three": "^0.170.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.9.3"
+  }
+}

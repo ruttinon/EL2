@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "paths": {
+      "@energylink/shared-data": ["../../packages/shared-data/dist/index.js"],
+      "@energylink/shared-types": ["../../packages/shared-types/dist/index.js"]
+    }
+  },
+  "include": ["src"]
+}

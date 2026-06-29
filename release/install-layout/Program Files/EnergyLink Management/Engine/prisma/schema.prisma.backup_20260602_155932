@@ -1,0 +1,347 @@
+﻿generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+model Project {
+  id             String        @id @default(cuid())
+  name           String        @unique
+  customerName   String?
+  location       String?
+  timezone       String        @default("Asia/Bangkok")
+  currency       String        @default("THB")
+  energyCostRate Float         @default(4.20)
+  status         String @default(draft)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  settings       ProjectSetting[]
+  devices        Device[]
+  tags           Tag[]
+  graphics       Graphic[]
+  reports        Report[]
+  reportSchedules ReportSchedule[]
+  reportScheduleRuns ReportScheduleRun[]
+  historyValues  HistoryValue[]
+  alarms         Alarm[]
+  notificationChannels AlarmNotificationChannel[]
+  notificationRules AlarmNotificationRule[]
+  notificationEvents AlarmNotificationEvent[]
+}
+
+model ProjectSetting {
+  id        String   @id @default(cuid())
+  projectId String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, key])
+}
+
+model Device {
+  id                    String         @id @default(cuid())
+  projectId             String
+  parentDeviceId         String?
+  name                  String
+  description           String?
+  type                  String
+  protocol              String @default(modbus_tcp)
+  ipAddress             String?
+  port                  Int?
+  serialPort            String?
+  baudRate              Int?           @default(9600)
+  dataBits              Int?           @default(8)
+  stopBits              Int?           @default(1)
+  parity                String?        @default("none")
+  slaveId               Int?
+  peripheralNumber      Int?
+  model                 String?
+  location              String?
+  communicationEnabled  Boolean        @default(true)
+  historyEnabled        Boolean        @default(true)
+  visible               Boolean        @default(true)
+  pollingIntervalMs     Int            @default(1000)
+  timeoutMs             Int            @default(2000)
+  status                String   @default(unknown)
+  lastTestAt            DateTime?
+  lastError             String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  project               Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent                Device?        @relation("DeviceChildren", fields: [parentDeviceId], references: [id], onDelete: Cascade)
+  children              Device[]       @relation("DeviceChildren")
+  tags                  Tag[]
+  historyValues         HistoryValue[]
+  alarms                Alarm[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([parentDeviceId])
+}
+
+model Tag {
+  id              String          @id @default(cuid())
+  projectId       String
+  deviceId        String
+  name            String
+  description     String?
+  address         Int
+  registerType    String @default(holding_register)
+  dataType        String     @default(float32)
+  unit            String?
+  scale           Float           @default(1)
+  offset          Float           @default(0)
+  decimalPlaces   Int             @default(2)
+  historyEnabled  Boolean         @default(true)
+  alarmHigh       Float?
+  alarmLow        Float?
+  currentValue    Float?
+  quality         String      @default(unknown)
+  lastValueAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  device          Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  historyValues   HistoryValue[]
+  alarms          Alarm[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([deviceId])
+}
+
+model Graphic {
+  id                String   @id @default(cuid())
+  projectId         String
+  name              String
+  description       String?
+  width             Int      @default(1366)
+  height            Int      @default(768)
+  refreshIntervalMs Int      @default(1000)
+  isDefault         Boolean  @default(false)
+  layoutJson        String   @default("{\"version\":1,\"backgroundColor\":\"#fbfdff\",\"objects\":[]}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([isDefault])
+}
+
+model Report {
+  id               String   @id @default(cuid())
+  projectId        String
+  name             String
+  description      String?
+  reportType       String   @default("daily_energy")
+  paperSize        String   @default("A4")
+  orientation      String   @default("landscape")
+  defaultDateRange String   @default("this_month")
+  outputFormat     String   @default("pdf")
+  isDefault        Boolean  @default(false)
+  templateJson     String   @default("{\"version\":1,\"pages\":[{\"id\":\"page_1\",\"width\":1123,\"height\":794,\"objects\":[]}]}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  schedules        ReportSchedule[]
+  scheduleRuns     ReportScheduleRun[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([isDefault])
+}
+
+model HistoryValue {
+  id        String     @id @default(cuid())
+  projectId String
+  deviceId  String
+  tagId     String
+  value     Float?
+  quality   String @default(unknown)
+  rawJson   String?
+  error     String?
+  readAt    DateTime
+  createdAt DateTime   @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  device    Device     @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  tag       Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, readAt])
+  @@index([deviceId, readAt])
+  @@index([tagId, readAt])
+}
+
+model Alarm {
+  id            String        @id @default(cuid())
+  projectId     String
+  deviceId      String
+  tagId         String
+  alarmType     String
+  severity      String @default(high)
+  status        String   @default(active)
+  acknowledged  Boolean       @default(false)
+  message       String
+  limitValue    Float?
+  triggerValue  Float?
+  startedAt     DateTime
+  endedAt       DateTime?
+  ackAt         DateTime?
+  ackUser       String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  device        Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  tag           Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status, startedAt])
+  @@index([deviceId, status])
+  notificationEvents AlarmNotificationEvent[]
+
+  @@index([tagId, alarmType, status])
+}
+model AlarmNotificationChannel {
+  id          String                        @id @default(cuid())
+  projectId   String?
+  name        String
+  type        String
+  enabled     Boolean                       @default(true)
+  configJson  String                        @default("{}")
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  project     Project?                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rules       AlarmNotificationRule[]
+  events      AlarmNotificationEvent[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([type])
+  @@index([enabled])
+}
+
+model AlarmNotificationRule {
+  id          String                        @id @default(cuid())
+  projectId   String?
+  channelId   String
+  name        String
+  enabled     Boolean                       @default(true)
+  eventType   String
+  minSeverity String                 @default(low)
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  project     Project?                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel     AlarmNotificationChannel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([channelId])
+  @@index([enabled])
+  @@index([eventType])
+}
+
+model AlarmNotificationEvent {
+  id          String                          @id @default(cuid())
+  projectId   String
+  alarmId     String
+  channelId   String?
+  eventType   String
+  status      String @default(pending)
+  message     String
+  error       String?
+  deliveredAt DateTime?
+  createdAt   DateTime                        @default(now())
+
+  project     Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  alarm       Alarm                           @relation(fields: [alarmId], references: [id], onDelete: Cascade)
+  channel     AlarmNotificationChannel?       @relation(fields: [channelId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([alarmId])
+  @@index([channelId])
+  @@index([status])
+  @@index([eventType])
+}
+model ReportSchedule {
+  id               String                  @id @default(cuid())
+  projectId        String
+  reportId         String
+  name             String
+  status           String    @default(enabled)
+  frequency        String @default(daily)
+  timeOfDay        String                  @default("06:00")
+  dayOfWeek        Int?
+  dayOfMonth       Int?
+  formatsJson      String                  @default("[\"pdf\"]")
+  dateRange        String                  @default("report_default")
+  lastRunAt        DateTime?
+  nextRunAt        DateTime?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  project          Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  report           Report                  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  runs             ReportScheduleRun[]
+
+  @@unique([projectId, name])
+  @@index([projectId, status, nextRunAt])
+  @@index([reportId])
+}
+
+model ReportScheduleRun {
+  id               String                  @id @default(cuid())
+  projectId        String
+  scheduleId       String?
+  reportId         String
+  status           String @default(running)
+  format           String
+  startedAt        DateTime                @default(now())
+  finishedAt       DateTime?
+  generatedFileName String?
+  generatedFilePath String?
+  error            String?
+
+  project          Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  schedule         ReportSchedule?         @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  report           Report                  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, startedAt])
+  @@index([scheduleId, startedAt])
+  @@index([reportId, startedAt])
+  @@index([status])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+model MaintenanceRun {
+  id             String               @id @default(cuid())
+  jobType        String
+  status         String @default(running)
+  startedAt      DateTime             @default(now())
+  finishedAt     DateTime?
+  deletedRows    Int                  @default(0)
+  deletedFiles   Int                  @default(0)
+  detailsJson    String               @default("{}")
+  error          String?
+
+  @@index([jobType, startedAt])
+  @@index([status, startedAt])
+}
+
+

@@ -1,0 +1,11 @@
+appId: com.energylink.engine-manager
+productName: EnergyLink Engine Manager
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+win:
+  target:
+    - dir
+  artifactName: EnergyLink-Engine-Manager-${version}.${ext}

@@ -1,0 +1,23 @@
+﻿<service>
+  <id>EnergyLinkEngine</id>
+  <name>EnergyLink Engine Service</name>
+  <description>EnergyLink Management runtime engine. Provides local API, real device communication, current value polling, history logging, alarms, graphics runtime data, and report generation. Runtime data is read only from configured devices.</description>
+  <executable>%BASE%\energylink-engine.exe</executable>
+  <workingdirectory>%BASE%</workingdirectory>
+  <logpath>C:\ProgramData\EnergyLink Management\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10485760</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+  <env name="ENERGYLINK_PROGRAMDATA" value="C:\ProgramData\EnergyLink Management" />
+  <env name="ENERGYLINK_CONFIG" value="C:\ProgramData\EnergyLink Management\config\engine.json" />
+  <env name="ENERGYLINK_PORT" value="8081" />
+  <env name="NODE_ENV" value="production" />
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <onfailure action="none" />
+  <stoptimeout>30 sec</stoptimeout>
+</service>
+

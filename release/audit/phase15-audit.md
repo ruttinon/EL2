@@ -1,0 +1,112 @@
+# EnergyLink Phase 15 Audit Result
+
+Generated: 2026-06-04T10:13:37.911Z
+
+PASS: 104
+WARN: 0
+FAIL: 0
+
+- PASS: directory exists: apps/editor-desktop
+- PASS: directory exists: apps/monitor-desktop
+- PASS: directory exists: apps/engine-manager-desktop
+- PASS: directory exists: apps/engine
+- PASS: directory exists: apps/web-viewer
+- PASS: directory exists: packages/shared-types
+- PASS: directory exists: packages/shared-ui
+- PASS: directory exists: packages/shared-data
+- PASS: directory exists: installer
+- PASS: directory exists: docs
+- PASS: directory exists: prisma/migrations
+- PASS: file exists: package.json
+- PASS: file exists: pnpm-workspace.yaml
+- PASS: file exists: turbo.json
+- PASS: file exists: tsconfig.base.json
+- PASS: file exists: prisma/schema.prisma
+- PASS: file exists: apps/editor-desktop/package.json
+- PASS: file exists: apps/editor-desktop/src/App.tsx
+- PASS: file exists: apps/editor-desktop/electron/main.ts
+- PASS: file exists: apps/monitor-desktop/package.json
+- PASS: file exists: apps/monitor-desktop/src/App.tsx
+- PASS: file exists: apps/monitor-desktop/electron/main.ts
+- PASS: file exists: apps/engine-manager-desktop/package.json
+- PASS: file exists: apps/engine-manager-desktop/src/App.tsx
+- PASS: file exists: apps/engine-manager-desktop/electron/main.ts
+- PASS: file exists: apps/engine/package.json
+- PASS: file exists: apps/engine/src/index.ts
+- PASS: file exists: apps/engine/src/services/runtimePollingService.ts
+- PASS: file exists: apps/engine/src/services/alarmRuntimeService.ts
+- PASS: file exists: apps/engine/src/services/reportGenerationService.ts
+- PASS: file exists: apps/engine/src/services/backupService.ts
+- PASS: file exists: apps/engine/src/services/maintenanceService.ts
+- PASS: file exists: apps/web-viewer/package.json
+- PASS: file exists: apps/web-viewer/src/App.tsx
+- PASS: file exists: apps/web-viewer/src/api/engineConnectionApi.ts
+- PASS: file exists: apps/web-viewer/src/api/engineApi.ts
+- PASS: file exists: apps/web-viewer/src/styles/web-viewer.css
+- PASS: file exists: apps/engine/src/routes/webViewerRoutes.ts
+- PASS: file exists: apps/engine/src/routes/maintenanceRoutes.ts
+- PASS: file exists: installer/winsw/energylink-engine.xml
+- PASS: file exists: installer/scripts/install-windows.ps1
+- PASS: file exists: installer/scripts/uninstall-windows.ps1
+- PASS: file exists: installer/inno/EnergyLinkManagement.iss
+- PASS: file exists: scripts/create-install-layout.mjs
+- PASS: file exists: scripts/build-release.mjs
+- PASS: file exists: scripts/create-initial-db.py
+- PASS: valid JSON: package.json
+- PASS: valid JSON: apps/editor-desktop/package.json
+- PASS: valid JSON: apps/monitor-desktop/package.json
+- PASS: valid JSON: apps/engine-manager-desktop/package.json
+- PASS: valid JSON: apps/engine/package.json
+- PASS: valid JSON: apps/web-viewer/package.json
+- PASS: root script exists: dev:editor
+- PASS: root script exists: dev:monitor
+- PASS: root script exists: dev:engine
+- PASS: root script exists: build
+- PASS: root script exists: build:release
+- PASS: root script exists: pack:layout
+- PASS: root script exists: build:engine-manager
+- PASS: root script exists: package:engine-manager
+- PASS: root script exists: dev:web
+- PASS: root script exists: build:web
+- PASS: root script exists: db:generate
+- PASS: root script exists: db:migrate
+- PASS: root script exists: db:deploy
+- PASS: Prisma model exists: Project
+- PASS: Prisma model exists: ProjectSetting
+- PASS: Prisma model exists: Device
+- PASS: Prisma model exists: Tag
+- PASS: Prisma model exists: Graphic
+- PASS: Prisma model exists: Report
+- PASS: Prisma model exists: HistoryValue
+- PASS: Prisma model exists: Alarm
+- PASS: Prisma model exists: ReportSchedule
+- PASS: Prisma model exists: ReportScheduleRun
+- PASS: Prisma model exists: MaintenanceRun
+- PASS: Prisma model exists: AppSetting
+- PASS: migration exists: phase2
+- PASS: migration exists: phase3
+- PASS: migration exists: phase4
+- PASS: migration exists: phase8
+- PASS: migration exists: phase10
+- PASS: migration exists: phase11
+- PASS: migration exists: phase12
+- PASS: migration exists: phase28
+- PASS: migration exists: phase29
+- PASS: no prohibited development artifact filenames found
+- PASS: no blocked pattern: Math.random runtime value
+- PASS: no blocked pattern: unsafe interval value pattern
+- PASS: install layout includes Program Files
+- PASS: install layout includes EnergyLink Management
+- PASS: install layout includes ProgramData
+- PASS: install layout includes Editor
+- PASS: install layout includes Monitor
+- PASS: install layout includes EngineManager
+- PASS: install layout includes Engine
+- PASS: install layout includes WebViewer
+- PASS: WinSW config includes EnergyLinkEngine
+- PASS: WinSW config includes energylink-engine.exe
+- PASS: WinSW config includes ProgramData\EnergyLink Management\logs
+- PASS: install script includes Program Files
+- PASS: install script includes ProgramData
+- PASS: install script includes service-wrapper.exe
+- PASS: install script includes energylink-engine.xml

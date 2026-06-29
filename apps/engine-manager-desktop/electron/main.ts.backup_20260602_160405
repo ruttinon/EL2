@@ -1,0 +1,112 @@
+﻿import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { execFile } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isDev = process.env.NODE_ENV === 'development' || process.env.VITE_DEV_SERVER_URL;
+const serviceName = 'EnergyLinkEngine';
+const programData = process.env.PROGRAMDATA
+  ? path.join(process.env.PROGRAMDATA, 'EnergyLink Management')
+  : 'C:\\ProgramData\\EnergyLink Management';
+const configPath = path.join(programData, 'config', 'engine.json');
+const logPath = path.join(programData, 'logs', 'engine.log');
+
+function runCommand(command: string, args: string[]): Promise<{ ok: boolean; stdout: string; stderr: string; code: number | null }> {
+  return new Promise((resolve) => {
+    execFile(command, args, { windowsHide: true }, (error, stdout, stderr) => {
+      const errno = (error as NodeJS.ErrnoException | null)?.errno;
+      const code: number | null = typeof errno === 'number' ? errno : null;
+      resolve({ ok: !error, stdout: stdout?.toString() ?? '', stderr: stderr?.toString() ?? '', code });
+    });
+  });
+}
+
+function parseScQuery(text: string): { installed: boolean; state: string; raw: string } {
+  if (/does not exist|FAILED 1060/i.test(text)) return { installed: false, state: 'not-installed', raw: text };
+  const match = text.match(/STATE\s*:\s*\d+\s+(\w+)/i);
+  return { installed: true, state: match?.[1]?.toLowerCase() ?? 'unknown', raw: text };
+}
+
+async function getServiceStatus() {
+  if (process.platform !== 'win32') {
+    return { installed: false, state: 'unsupported-platform', raw: 'Windows service control is available only on Windows.' };
+  }
+  const result = await runCommand('sc.exe', ['query', serviceName]);
+  return parseScQuery(`${result.stdout}\n${result.stderr}`);
+}
+
+async function serviceAction(action: 'start' | 'stop') {
+  if (process.platform !== 'win32') {
+    return { ok: false, message: 'Windows service control is available only on Windows.' };
+  }
+  const verb = action === 'start' ? 'Start-Service' : 'Stop-Service';
+  const result = await runCommand('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', `${verb} -Name ${serviceName}`]);
+  return { ok: result.ok, message: result.ok ? `${action} requested` : (result.stderr || result.stdout || `${action} failed`) };
+}
+
+async function ensureFolder(folder: string) {
+  await fs.mkdir(folder, { recursive: true });
+  await shell.openPath(folder);
+  return { ok: true, path: folder };
+}
+
+async function readRecentLogLines(limit = 200) {
+  try {
+    const text = await fs.readFile(logPath, 'utf8');
+    return text.split(/\r?\n/).filter(Boolean).slice(-Math.max(1, Math.min(limit, 1000)));
+  } catch (error) {
+    return [`No engine log file found at ${logPath}.`];
+  }
+}
+
+function registerIpc() {
+  ipcMain.handle('engine-manager:getServiceStatus', () => getServiceStatus());
+  ipcMain.handle('engine-manager:startService', () => serviceAction('start'));
+  ipcMain.handle('engine-manager:stopService', () => serviceAction('stop'));
+  ipcMain.handle('engine-manager:restartService', async () => {
+    const stop = await serviceAction('stop');
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const start = await serviceAction('start');
+    return { ok: stop.ok && start.ok, message: `stop: ${stop.message}; start: ${start.message}` };
+  });
+  ipcMain.handle('engine-manager:openProgramData', () => ensureFolder(programData));
+  ipcMain.handle('engine-manager:openLogs', () => ensureFolder(path.join(programData, 'logs')));
+  ipcMain.handle('engine-manager:openConfig', async () => {
+    await fs.mkdir(path.dirname(configPath), { recursive: true });
+    await shell.openPath(configPath);
+    return { ok: true, path: configPath };
+  });
+  ipcMain.handle('engine-manager:openEngineUrl', () => shell.openExternal('http://localhost:8081/api/status'));
+  ipcMain.handle('engine-manager:readRecentLogLines', (_event, limit?: number) => readRecentLogLines(limit));
+}
+
+async function createWindow() {
+  const win = new BrowserWindow({
+    width: 980,
+    height: 720,
+    minWidth: 860,
+    minHeight: 620,
+    title: 'EnergyLink Engine Manager',
+    backgroundColor: '#edf4f7',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  if (isDev && process.env.VITE_DEV_SERVER_URL) {
+    await win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    await win.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+}
+
+app.whenReady().then(() => {
+  registerIpc();
+  createWindow();
+});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
