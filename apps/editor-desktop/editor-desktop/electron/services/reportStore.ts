@@ -4,6 +4,12 @@ import { getDatabaseUrl } from '@energylink/shared-data';
 
 let prisma: PrismaClient | null = null;
 
+function getClient() {
+  process.env.DATABASE_URL = getDatabaseUrl();
+  prisma ??= new PrismaClient();
+  return prisma;
+}
+
 const defaultPage = (): ReportPageDefinition => ({
   id: 'page_1',
   name: 'Page 1',
@@ -13,12 +19,17 @@ const defaultPage = (): ReportPageDefinition => ({
   objects: []
 });
 
-const emptyTemplate = (): ReportTemplate => ({ version: 1, pages: [defaultPage()] });
+const defaultPages = (): ReportPageDefinition[] => [defaultPage()];
 
-function getClient() {
-  process.env.DATABASE_URL = getDatabaseUrl();
-  prisma ??= new PrismaClient();
-  return prisma;
+const emptyTemplate = (): ReportTemplate => ({ version: 1, pages: defaultPages() });
+
+function isSpreadsheetTemplate(template: ReportTemplate | null | undefined): boolean {
+  return (
+    template != null &&
+    typeof template === 'object' &&
+    template.mode === 'spreadsheet' &&
+    Number(template.version ?? 1) >= 2
+  );
 }
 
 function normalizeObject(obj: ReportObjectDefinition, index: number): ReportObjectDefinition {
@@ -40,10 +51,20 @@ function parseTemplate(templateJson: string | null | undefined): ReportTemplate 
   if (!templateJson) return emptyTemplate();
   try {
     const parsed = JSON.parse(templateJson) as ReportTemplate;
-    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.pages)) return emptyTemplate();
+    if (!parsed) return emptyTemplate();
+    
+    if (isSpreadsheetTemplate(parsed)) {
+      return {
+        ...parsed,
+        version: Math.max(2, Number(parsed.version ?? 2)),
+        mode: 'spreadsheet',
+        pages: Array.isArray(parsed.pages) && parsed.pages.length ? parsed.pages : defaultPages(),
+      };
+    }
+    
     return {
       version: 1,
-      pages: parsed.pages.map((page, pageIndex) => ({
+      pages: (Array.isArray(parsed.pages) ? parsed.pages : defaultPages()).map((page, pageIndex) => ({
         id: page.id || `page_${pageIndex + 1}`,
         name: page.name || `Page ${pageIndex + 1}`,
         width: Math.max(320, Math.round(Number(page.width) || 1123)),
@@ -59,8 +80,20 @@ function parseTemplate(templateJson: string | null | undefined): ReportTemplate 
 
 function serializeTemplate(template?: ReportTemplate): string {
   const cleanTemplate = template || emptyTemplate();
-  if (cleanTemplate.version !== 1) throw new Error('Report template version must be 1');
-  if (!Array.isArray(cleanTemplate.pages) || cleanTemplate.pages.length === 0) throw new Error('Report template must have at least one page');
+  
+  if (isSpreadsheetTemplate(cleanTemplate)) {
+    return JSON.stringify({
+      ...cleanTemplate,
+      version: Math.max(2, Number(cleanTemplate.version ?? 2)),
+      mode: 'spreadsheet',
+      pages: Array.isArray(cleanTemplate.pages) && cleanTemplate.pages.length ? cleanTemplate.pages : defaultPages(),
+    });
+  }
+  
+  if (!Array.isArray(cleanTemplate.pages) || cleanTemplate.pages.length === 0) {
+    return JSON.stringify({ ...emptyTemplate() });
+  }
+  
   return JSON.stringify({
     version: 1,
     pages: cleanTemplate.pages.map((page, pageIndex) => ({
