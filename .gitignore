@@ -25,3 +25,6 @@ build/
 # Temporary files
 tmp/
 temp/
+
+# Misc directories
+powerstudio_full_logic_xgmb_editor_clean/
