@@ -433,6 +433,13 @@ function appendDefaultBillingSection(
   doc.moveDown(0.4);
   doc.fontSize(10);
   doc.text(`Tariff: ${bill.tariffName} (${bill.tariffMode})`);
+  if (bill.warnings && bill.warnings.length > 0) {
+    doc.save().fillColor('#dc2626').fontSize(9);
+    for (const w of bill.warnings) {
+      doc.text(`⚠️ Warning: ${w}`);
+    }
+    doc.restore().fontSize(10);
+  }
   doc.text(`Total kWh: ${formatValue(bill.totalKwh)} | Import: ${formatValue(bill.importKwh)} | Export: ${formatValue(bill.exportKwh)}`);
   doc.text(`Energy: ${formatValue(bill.energyCost)} ${bill.currency} | Demand (${formatValue(bill.peakDemandKw)} kW): ${formatValue(bill.demandCost)} ${bill.currency}`);
   doc.text(`Subtotal: ${formatValue(bill.subtotal)} | VAT: ${formatValue(bill.vat)} | Grand Total: ${formatValue(bill.grandTotal)} ${bill.currency}`);
@@ -465,6 +472,7 @@ function writePdf(
   report: any,
   data: Awaited<ReturnType<typeof buildReportData>>,
   periodCache: ObjectPeriodCache,
+  traceList?: any[],
 ) {
   return new Promise<void>(async (resolve, reject) => {
     const isLandscape = report.orientation !== 'portrait';
@@ -635,7 +643,35 @@ function writePdf(
           const metric = String(obj.props?.fieldMetric ?? obj.props?.valueMode ?? 'last') as ReportFieldMetric;
           const dp = typeof style.decimalPlaces === 'number' ? style.decimalPlaces : 2;
           const value = resolveFieldMetricValue(metric, tagSum, null);
-          let display = formatReportFormulaResult(value, dp);
+
+          const cb = obj.props?.calculationBinding ?? {};
+          const ctRatio = Number(cb.ctRatio ?? obj.props?.ctRatio ?? 1);
+          const ptRatio = Number(cb.ptRatio ?? obj.props?.ptRatio ?? 1);
+          const multiplier = Number(cb.multiplier ?? obj.props?.multiplier ?? 1);
+          const scale = Number(cb.scale ?? obj.props?.scale ?? 1);
+          const offset = Number(cb.offset ?? obj.props?.offset ?? 0);
+
+          let finalValue = value;
+          if (value != null) {
+            finalValue = value * ctRatio * ptRatio * multiplier * scale + offset;
+          }
+
+          if (traceList) {
+            traceList.push({
+              objectId: obj.id,
+              objectName: obj.name ?? obj.text ?? 'Value object',
+              tagId,
+              rawValue: value,
+              ctRatio,
+              ptRatio,
+              multiplier,
+              scale,
+              offset,
+              finalValue,
+            });
+          }
+
+          let display = formatReportFormulaResult(finalValue, dp);
           const unit = String(obj.style?.unit ?? tagSum?.unit ?? '').trim();
           if (unit && display !== '—') display = `${display} ${unit}`;
           if (String(obj.type).toLowerCase() === 'kpicard') {
@@ -848,6 +884,7 @@ async function writeExcel(
   report: any,
   data: Awaited<ReturnType<typeof buildReportData>>,
   periodCache: ObjectPeriodCache,
+  traceList?: any[],
 ) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'EnergyLink Management';
@@ -871,6 +908,15 @@ async function writeExcel(
       ['--- Energy Billing ---'],
       ['Tariff', b.tariffName],
       ['Mode', b.tariffMode],
+    ]);
+
+    if (b.warnings && b.warnings.length > 0) {
+      for (const w of b.warnings) {
+        summary.addRow([`⚠️ Warning`, w]);
+      }
+    }
+
+    summary.addRows([
       ['Total kWh', b.totalKwh],
       ['Energy Cost', b.energyCost],
       ['Demand Cost', b.demandCost],
@@ -1043,8 +1089,10 @@ export async function generateReport(options: GenerateReportOptions) {
   const fileName = `${sanitizeFileName(report.name)}_${timestamp}.${extension}`;
   const filePath = path.join(reportsDir, fileName);
 
-  if (format === 'excel') await writeExcel(filePath, report, data, periodCache);
-  else writePdf(filePath, report, data, periodCache);
+  const traceList: any[] = [];
+
+  if (format === 'excel') await writeExcel(filePath, report, data, periodCache, traceList);
+  else writePdf(filePath, report, data, periodCache, traceList);
 
   appendEngineLog('info', 'Report generated from real stored data', {
     reportId: report.id,
@@ -1067,6 +1115,7 @@ export async function generateReport(options: GenerateReportOptions) {
     sizeBytes: stat.size,
     generatedAt: new Date().toISOString(),
     period: { from: range.from.toISOString(), to: range.to.toISOString(), label: range.label },
+    calculationTrace: traceList,
     source: {
       historyCount: data.historyCount,
       alarmCount: data.alarmCount,

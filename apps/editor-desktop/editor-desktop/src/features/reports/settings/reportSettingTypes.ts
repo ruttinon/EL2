@@ -40,6 +40,7 @@ export type ReportToolSettingsSchema = {
   general?: ReportToolSettingField[];
   style?: ReportToolSettingField[];
   binding?: ReportToolSettingField[];
+  calculation?: ReportToolSettingField[];
   data?: ReportToolSettingField[];
   table?: ReportToolSettingField[];
   chart?: ReportToolSettingField[];

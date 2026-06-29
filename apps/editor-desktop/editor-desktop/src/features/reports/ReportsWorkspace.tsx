@@ -2143,6 +2143,7 @@ export function ReportsWorkspace() {
                       tags={tags}
                       devices={devices}
                       onPatch={(patch) => patchObjectById(sel.id, patch)}
+                      periodContext={periodContext}
                     />
                     <ReportObjectSupplement
                       object={sel}

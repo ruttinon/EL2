@@ -338,6 +338,19 @@ function applyEnergyTagValue(
   }
 }
 
+function applyCalculationBindingValue(patch: Partial<ReportObjectDefinition>, key: string, value: unknown) {
+  const props = ensureProps(patch);
+  if (!props.calculationBinding) {
+    props.calculationBinding = {};
+  }
+  const cb = props.calculationBinding as Record<string, unknown>;
+  if (['ctRatio', 'ptRatio', 'multiplier', 'scale', 'offset'].includes(key)) {
+    cb[key] = normalizeNumber(value);
+  } else {
+    cb[key] = normalizeString(value) || undefined;
+  }
+}
+
 function applyDeviceValue(patch: Partial<ReportObjectDefinition>, value: unknown) {
   const deviceId = normalizeString(value).trim();
   patch.deviceId = deviceId || undefined;
@@ -366,6 +379,22 @@ function applyValueSetting(
     return;
   }
 
+  if ([
+    'projectId', 'registerAddress', 'registerName', 'functionCode', 'dataType',
+    'energyRole', 'calculationType', 'ctRatio', 'ptRatio', 'multiplier', 'scale', 'offset'
+  ].includes(key)) {
+    applyCalculationBindingValue(patch, key, value);
+    if (key === 'multiplier') {
+      const props = ensureProps(patch);
+      props.multiplier = normalizeNumber(value);
+    }
+    if (key === 'ctRatio') {
+      const props = ensureProps(patch);
+      props.ctRatio = normalizeNumber(value);
+    }
+    return;
+  }
+
   switch (key) {
     case 'name':
       patch.name = normalizeString(value);
@@ -385,6 +414,7 @@ function applyValueSetting(
     }
     case 'tag':
       applyTagValue(patch, value);
+      applyCalculationBindingValue(patch, 'tagId', value);
       return;
     case 'tagIds':
       applyTagIdsValue(object, patch, value);
@@ -394,6 +424,7 @@ function applyValueSetting(
       return;
     case 'device':
       applyDeviceValue(patch, value);
+      applyCalculationBindingValue(patch, 'deviceId', value);
       return;
     case 'deviceScope':
       applyScopedDeviceValue(patch, value, 'converter');
@@ -405,6 +436,7 @@ function applyValueSetting(
       applyScopedDeviceValue(patch, value, 'device');
       const props = ensureProps(patch);
       props.meterId = normalizeString(value).trim() || undefined;
+      applyCalculationBindingValue(patch, 'meterId', value);
       return;
     }
     case 'metric':
@@ -588,8 +620,26 @@ export function mapObjectToSettings(object: ReportObjectDefinition): Record<stri
     ...(object.binding ?? {}),
   } as Record<string, unknown>;
 
+  const cb = (object.props?.calculationBinding ?? {}) as Record<string, unknown>;
+
   return {
     ...merged,
+    projectId: cb.projectId ?? object.props?.projectId ?? '',
+    meterId: cb.meterId ?? object.props?.meterId ?? object.props?.scopeDeviceId ?? '',
+    deviceId: cb.deviceId ?? object.deviceId ?? object.binding?.deviceId ?? object.props?.deviceId ?? '',
+    tagId: cb.tagId ?? object.tagId ?? object.sourceTagId ?? object.binding?.tagId ?? '',
+    registerAddress: cb.registerAddress ?? object.props?.registerAddress ?? '',
+    registerName: cb.registerName ?? object.props?.registerName ?? '',
+    functionCode: cb.functionCode ?? object.props?.functionCode ?? '',
+    dataType: cb.dataType ?? object.props?.dataType ?? '',
+    energyRole: cb.energyRole ?? object.props?.energyRole ?? '',
+    calculationType: cb.calculationType ?? object.props?.calculationType ?? 'cumulative_delta',
+    ctRatio: cb.ctRatio ?? object.props?.ctRatio ?? 1,
+    ptRatio: cb.ptRatio ?? object.props?.ptRatio ?? 1,
+    multiplier: cb.multiplier ?? object.props?.multiplier ?? 1,
+    scale: cb.scale ?? object.props?.scale ?? 1,
+    offset: cb.offset ?? object.props?.offset ?? 0,
+    
     name: object.name,
     text: object.text,
     x: object.x,

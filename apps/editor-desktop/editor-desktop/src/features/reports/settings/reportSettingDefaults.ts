@@ -252,6 +252,33 @@ export const reportSettingDefaults: ReportToolSettingsRegistry = {
   },
   value: {
     toolType: 'value',
+    calculation: [
+      { key: 'calculationType', label: 'Calculation type', type: 'select', defaultValue: 'cumulative_delta', options: [
+        { label: 'Cumulative Delta (Last - First)', value: 'cumulative_delta' },
+        { label: 'Sum Interval Delta', value: 'sum_interval' },
+        { label: 'Average', value: 'average' },
+        { label: 'Peak (Max)', value: 'peak' },
+        { label: 'Instant Last', value: 'instant_last' },
+        { label: 'Manual Formula', value: 'manual_formula' },
+      ] },
+      { key: 'energyRole', label: 'Energy/Register role', type: 'select', defaultValue: '', options: [
+        { label: 'Not specified', value: '' },
+        { label: 'Import kWh (Active Energy)', value: 'import_kwh' },
+        { label: 'Export kWh', value: 'export_kwh' },
+        { label: 'Total kWh', value: 'total_kwh' },
+        { label: 'Peak Demand kW', value: 'demand_kw' },
+        { label: 'Active Power kW', value: 'active_power_kw' },
+        { label: 'Voltage V', value: 'voltage_v' },
+        { label: 'Current A', value: 'current_a' },
+      ] },
+      { key: 'ctRatio', label: 'CT Ratio', type: 'number', defaultValue: 1 },
+      { key: 'ptRatio', label: 'PT Ratio', type: 'number', defaultValue: 1 },
+      { key: 'multiplier', label: 'Multiplier', type: 'number', defaultValue: 1 },
+      { key: 'scale', label: 'Scale Factor', type: 'number', defaultValue: 1 },
+      { key: 'offset', label: 'Offset Value', type: 'number', defaultValue: 0 },
+      { key: 'registerAddress', label: 'Register Address', type: 'text' },
+      { key: 'registerName', label: 'Register Name', type: 'text' },
+    ],
     general: [
       { key: 'name', label: 'Name', type: 'text', defaultValue: 'Value' },
       { key: 'bindingSource', label: 'Binding source', type: 'select', defaultValue: 'tag', options: [
@@ -306,6 +333,33 @@ export const reportSettingDefaults: ReportToolSettingsRegistry = {
   },
   kpicard: {
     toolType: 'kpicard',
+    calculation: [
+      { key: 'calculationType', label: 'Calculation type', type: 'select', defaultValue: 'cumulative_delta', options: [
+        { label: 'Cumulative Delta (Last - First)', value: 'cumulative_delta' },
+        { label: 'Sum Interval Delta', value: 'sum_interval' },
+        { label: 'Average', value: 'average' },
+        { label: 'Peak (Max)', value: 'peak' },
+        { label: 'Instant Last', value: 'instant_last' },
+        { label: 'Manual Formula', value: 'manual_formula' },
+      ] },
+      { key: 'energyRole', label: 'Energy/Register role', type: 'select', defaultValue: '', options: [
+        { label: 'Not specified', value: '' },
+        { label: 'Import kWh (Active Energy)', value: 'import_kwh' },
+        { label: 'Export kWh', value: 'export_kwh' },
+        { label: 'Total kWh', value: 'total_kwh' },
+        { label: 'Peak Demand kW', value: 'demand_kw' },
+        { label: 'Active Power kW', value: 'active_power_kw' },
+        { label: 'Voltage V', value: 'voltage_v' },
+        { label: 'Current A', value: 'current_a' },
+      ] },
+      { key: 'ctRatio', label: 'CT Ratio', type: 'number', defaultValue: 1 },
+      { key: 'ptRatio', label: 'PT Ratio', type: 'number', defaultValue: 1 },
+      { key: 'multiplier', label: 'Multiplier', type: 'number', defaultValue: 1 },
+      { key: 'scale', label: 'Scale Factor', type: 'number', defaultValue: 1 },
+      { key: 'offset', label: 'Offset Value', type: 'number', defaultValue: 0 },
+      { key: 'registerAddress', label: 'Register Address', type: 'text' },
+      { key: 'registerName', label: 'Register Name', type: 'text' },
+    ],
     general: [
       { key: 'name', label: 'Name', type: 'text', defaultValue: 'KPI' },
       { key: 'title', label: 'Title', type: 'text', defaultValue: 'KPI' },
