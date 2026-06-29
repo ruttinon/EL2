@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 import ExcelJS from 'exceljs';
 import { getReportsDir } from '@energylink/shared-data';
 import { getPrismaClient } from './database.js';
@@ -368,6 +369,38 @@ function objectTagIds(obj: any): string[] {
   return Array.from(ids);
 }
 
+function resolveReportImageSource(obj: any): string | Buffer | null {
+  if (!obj) return null;
+  const src = obj.imageDataUrl || obj.props?.imageDataUrl || obj.style?.imageDataUrl || obj.props?.src || obj.src;
+  if (!src) return null;
+
+  if (typeof src === 'string') {
+    if (src.startsWith('data:image/')) {
+      try {
+        const parts = src.split(',');
+        if (parts.length > 1) {
+          return Buffer.from(parts[1], 'base64');
+        }
+      } catch (err) {
+        console.error('Failed to parse base64 image data URL:', err);
+      }
+    } else {
+      // Local path check
+      try {
+        if (fs.existsSync(src)) {
+          const stat = fs.statSync(src);
+          if (stat.isFile()) {
+            return src;
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }
+  return null;
+}
+
 function drawSimpleQr(doc: InstanceType<typeof PDFDocument>, x: number, y: number, w: number, h: number, color: string) {
   const size = Math.min(w, h) - 8;
   if (size <= 0) return;
@@ -433,7 +466,7 @@ function writePdf(
   data: Awaited<ReturnType<typeof buildReportData>>,
   periodCache: ObjectPeriodCache,
 ) {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>(async (resolve, reject) => {
     const isLandscape = report.orientation !== 'portrait';
     const pdfWidth = isLandscape ? 841.89 : 595.28;
     const pdfHeight = isLandscape ? 595.28 : 841.89;
@@ -562,9 +595,16 @@ function writePdf(
           doc.fillColor(textCol).fontSize(Math.max(7, fontSize * 0.8));
           doc.text(obj.text || 'Sign Here', ox + 4, lineY + 5, { width: ow - 8, align: 'center' });
         } else if (objectType === 'qrcode') {
-          drawSimpleQr(doc, ox, oy, ow, oh, textCol);
-          if (obj.props?.qrData) {
-            doc.fontSize(Math.max(6, fontSize * 0.55)).text(String(obj.props.qrData), ox + 4, oy + oh - fontSize, { width: ow - 8, align: 'center' });
+          const qrText = obj.props?.qrData || obj.props?.value || obj.text || report.name || report.projectId || 'EnergyLink';
+          try {
+            const qrBuffer = await QRCode.toBuffer(qrText, { type: 'png', width: 256, margin: 1 });
+            doc.image(qrBuffer, ox, oy, { width: ow, height: oh });
+          } catch (err) {
+            console.error('Failed to generate QR Code:', err);
+            drawSimpleQr(doc, ox, oy, ow, oh, textCol);
+            if (obj.props?.qrData) {
+              doc.fontSize(Math.max(6, fontSize * 0.55)).text(String(obj.props.qrData), ox + 4, oy + oh - fontSize, { width: ow - 8, align: 'center' });
+            }
           }
         } else if (objectType === 'formula') {
           const slice = objectDataSlice(obj, report, data, periodCache);
@@ -772,7 +812,29 @@ function writePdf(
             currentY += rowH;
           }
         } else if (objectType === 'image') {
-          doc.text('[Image Object]', ox + 4, oy + 4, { width: ow - 8, align: 'center' });
+          try {
+            const imageSrc = resolveReportImageSource(obj);
+            if (imageSrc) {
+              doc.image(imageSrc, ox, oy, { fit: [ow, oh], align: 'center', valign: 'center' });
+            } else {
+              // Draw a placeholder frame
+              doc.save()
+                 .lineWidth(1)
+                 .rect(ox, oy, ow, oh)
+                 .dash(4, { space: 2 })
+                 .strokeColor('#cbd5e1')
+                 .stroke()
+                 .restore();
+              doc.fillColor('#94a3b8')
+                 .fontSize(fontSize * 0.65 || 9)
+                 .text('Image not available', ox + 4, oy + (oh - 10) / 2, { width: ow - 8, align: 'center' });
+            }
+          } catch (err) {
+            console.error('Failed to render image in report PDF generation:', err);
+            doc.fillColor('#ef4444')
+               .fontSize(fontSize * 0.65 || 9)
+               .text('Image error', ox + 4, oy + (oh - 10) / 2, { width: ow - 8, align: 'center' });
+          }
         }
       }
     }

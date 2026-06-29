@@ -1,10 +1,10 @@
 # EnergyLink Round 14 Build QA Result
 
-Generated: 2026-06-19T17:14:20.595Z
+Generated: 2026-06-29T09:27:26.887Z
 
-PASS: 78
+PASS: 76
 WARN: 0
-FAIL: 0
+FAIL: 2
 
 - PASS: root script exists: dev:engine
 - PASS: root script exists: dev:editor
@@ -19,14 +19,14 @@ FAIL: 0
 - PASS: root script exists: qa:functions
 - PASS: root script exists: qa:local
 - PASS: root build runs workspace builds
-- PASS: workspace directory exists: apps/editor-desktop
+- PASS: workspace directory exists: apps/editor-desktop/editor-desktop
 - PASS: workspace package name: @energylink/editor-desktop
 - PASS: @energylink/editor-desktop script exists: dev
 - PASS: @energylink/editor-desktop script exists: build
-- PASS: file exists: apps/editor-desktop/src/App.tsx
-- PASS: file exists: apps/editor-desktop/src/main.tsx
-- PASS: file exists: apps/editor-desktop/tsconfig.json
-- PASS: file exists: apps/editor-desktop/vite.config.ts
+- PASS: file exists: apps/editor-desktop/editor-desktop/src/App.tsx
+- PASS: file exists: apps/editor-desktop/editor-desktop/src/main.tsx
+- PASS: file exists: apps/editor-desktop/editor-desktop/tsconfig.json
+- PASS: file exists: apps/editor-desktop/editor-desktop/vite.config.ts
 - PASS: workspace directory exists: apps/monitor-desktop
 - PASS: workspace package name: @energylink/monitor-desktop
 - PASS: @energylink/monitor-desktop script exists: dev
@@ -50,15 +50,15 @@ FAIL: 0
 - PASS: file exists: apps/web-viewer/tsconfig.json
 - PASS: file exists: apps/web-viewer/vite.config.ts
 - PASS: no blocked source pattern: LoginGate usage in runtime apps
-- PASS: no blocked source pattern: password UI field in runtime apps
-- PASS: no blocked source pattern: mock simulator fake runtime naming
-- PASS: App export exists: apps/editor-desktop/src/App.tsx
-- PASS: LoginGate not referenced: apps/editor-desktop/src/App.tsx
+- FAIL: blocked source pattern found: password UI field in runtime apps - apps/editor-desktop/editor-desktop/src/features/devices/DevicesWorkspace.tsx, apps/engine/src/drivers/mqtt/mqttBrokerHub.ts, apps/engine/src/routes/editorDataRoutes.ts, apps/engine/src/services/database.ts
+- FAIL: blocked source pattern found: mock simulator fake runtime naming - apps/editor-desktop/editor-desktop/src/features/graphics/editor/objectCatalog.ts, apps/editor-desktop/editor-desktop/src/features/graphics/graphicAssets.ts, apps/editor-desktop/editor-desktop/src/features/graphics/graphicSymbols.ts, apps/editor-desktop/editor-desktop/src/features/reports/ReportInspectorSections.tsx, apps/editor-desktop/editor-desktop/src/features/reports/reportPatchUtils.ts, apps/editor-desktop/editor-desktop/src/features/reports/reportPreviewRuntime.ts
+- PASS: App export exists: apps/editor-desktop/editor-desktop/src/App.tsx
+- PASS: LoginGate not referenced: apps/editor-desktop/editor-desktop/src/App.tsx
 - PASS: App export exists: apps/monitor-desktop/src/App.tsx
 - PASS: LoginGate not referenced: apps/monitor-desktop/src/App.tsx
 - PASS: App export exists: apps/web-viewer/src/App.tsx
 - PASS: LoginGate not referenced: apps/web-viewer/src/App.tsx
-- PASS: commandBus exists - apps/editor-desktop/src/commandBus.ts
+- PASS: commandBus exists - apps/editor-desktop/editor-desktop/src/commandBus.ts
 - PASS: editor command implemented or routed: New
 - PASS: editor command implemented or routed: Open
 - PASS: editor command implemented or routed: Save

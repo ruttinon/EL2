@@ -1,13 +1,14 @@
 {
-  "generatedAt": "2026-06-04T10:13:37.911Z",
-  "root": "C:\\Users\\promb\\Desktop\\ENL-V0.3\\ENL",
+  "generatedAt": "2026-06-29T09:23:28.519Z",
+  "root": "C:\\Users\\promb\\Desktop\\EnergyL2\\EnergyL2",
   "counts": {
-    "PASS": 104
+    "PASS": 103,
+    "FAIL": 1
   },
   "results": [
     {
       "status": "PASS",
-      "name": "directory exists: apps/editor-desktop",
+      "name": "directory exists: apps/editor-desktop/editor-desktop",
       "detail": ""
     },
     {
@@ -87,17 +88,17 @@
     },
     {
       "status": "PASS",
-      "name": "file exists: apps/editor-desktop/package.json",
+      "name": "file exists: apps/editor-desktop/editor-desktop/package.json",
       "detail": ""
     },
     {
       "status": "PASS",
-      "name": "file exists: apps/editor-desktop/src/App.tsx",
+      "name": "file exists: apps/editor-desktop/editor-desktop/src/App.tsx",
       "detail": ""
     },
     {
       "status": "PASS",
-      "name": "file exists: apps/editor-desktop/electron/main.ts",
+      "name": "file exists: apps/editor-desktop/editor-desktop/electron/main.ts",
       "detail": ""
     },
     {
@@ -242,7 +243,7 @@
     },
     {
       "status": "PASS",
-      "name": "valid JSON: apps/editor-desktop/package.json",
+      "name": "valid JSON: apps/editor-desktop/editor-desktop/package.json",
       "detail": ""
     },
     {
@@ -441,9 +442,9 @@
       "detail": ""
     },
     {
-      "status": "PASS",
-      "name": "no blocked pattern: Math.random runtime value",
-      "detail": ""
+      "status": "FAIL",
+      "name": "blocked pattern found: Math.random runtime value",
+      "detail": "apps\\editor-desktop\\editor-desktop\\src\\features\\graphics\\editor\\objectCatalog.ts, apps\\editor-desktop\\editor-desktop\\src\\features\\graphics\\graphicAssets.ts, apps\\editor-desktop\\editor-desktop\\src\\features\\graphics\\graphicSymbols.ts, packages\\graphics-runtime\\src\\htmlPage.ts, powerstudio_full_logic_xgmb_editor_clean\\powerstudio_full_logic_xgmb_editor_clean\\app.js"
     },
     {
       "status": "PASS",

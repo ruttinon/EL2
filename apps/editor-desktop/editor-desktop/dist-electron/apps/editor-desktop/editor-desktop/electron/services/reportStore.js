@@ -19,8 +19,7 @@ const emptyTemplate = () => ({ version: 1, pages: defaultPages() });
 function isSpreadsheetTemplate(template) {
     return (template != null &&
         typeof template === 'object' &&
-        template.mode === 'spreadsheet' &&
-        Number(template.version ?? 1) >= 2);
+        (template.mode === 'spreadsheet' || Number(template.version ?? 1) >= 2));
 }
 function normalizeObject(obj, index) {
     return {
@@ -44,11 +43,32 @@ function parseTemplate(templateJson) {
         if (!parsed)
             return emptyTemplate();
         if (isSpreadsheetTemplate(parsed)) {
+            const hasSheets = Array.isArray(parsed.spreadsheet?.snapshot?.sheets);
+            const spreadsheetData = {
+                snapshot: {
+                    sheets: hasSheets ? parsed.spreadsheet.snapshot.sheets : [{
+                            id: 'sheet_1',
+                            name: 'Sheet1',
+                            rowCount: 20,
+                            colCount: 10,
+                            usedRange: 'A1:J20',
+                            columns: Array.from({ length: 10 }, (_, index) => ({ index: index + 1, width: 14 })),
+                            merges: [],
+                            cells: [],
+                        }]
+                },
+                bindings: Array.isArray(parsed.spreadsheet?.bindings) ? parsed.spreadsheet.bindings : [],
+                export: parsed.spreadsheet?.export || {
+                    pdf: { sheetMode: 'all', fitToPage: true, showGridLines: false },
+                    excel: { preserveFormulas: true }
+                }
+            };
             return {
                 ...parsed,
                 version: Math.max(2, Number(parsed.version ?? 2)),
                 mode: 'spreadsheet',
                 pages: Array.isArray(parsed.pages) && parsed.pages.length ? parsed.pages : defaultPages(),
+                spreadsheet: spreadsheetData
             };
         }
         return {
@@ -70,6 +90,9 @@ function parseTemplate(templateJson) {
 function serializeTemplate(template) {
     const cleanTemplate = template || emptyTemplate();
     if (isSpreadsheetTemplate(cleanTemplate)) {
+        if (!cleanTemplate.spreadsheet?.snapshot?.sheets) {
+            throw new Error('Spreadsheet report template must contain spreadsheet.snapshot.sheets');
+        }
         return JSON.stringify({
             ...cleanTemplate,
             version: Math.max(2, Number(cleanTemplate.version ?? 2)),

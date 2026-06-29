@@ -1,0 +1,286 @@
+{
+  "generatedAt": "2026-06-29T09:27:04.455Z",
+  "rows": [
+    {
+      "module": "file",
+      "command": "new",
+      "handled": true
+    },
+    {
+      "module": "file",
+      "command": "open",
+      "handled": true
+    },
+    {
+      "module": "file",
+      "command": "save",
+      "handled": true
+    },
+    {
+      "module": "file",
+      "command": "import",
+      "handled": true
+    },
+    {
+      "module": "file",
+      "command": "export",
+      "handled": true
+    },
+    {
+      "module": "file",
+      "command": "exit",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "connections",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "groups",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "devices",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "templates",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "add converter",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "add meter",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "modify",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "delete",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "add tag",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "tag list",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "expand",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "collapse",
+      "handled": true
+    },
+    {
+      "module": "devices",
+      "command": "refresh",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "designer",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "graphics list",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "new graphic",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "save",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "delete",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "validate",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "preview",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "grid 20px",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "measure",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "lock",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "zoom",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "bind tag",
+      "handled": true
+    },
+    {
+      "module": "graphics",
+      "command": "object tools",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "designer",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "reports list",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "new report",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "save",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "delete",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "validate",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "preview",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "page setup",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "align",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "grid 20px",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "lock",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "export pdf",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "export excel",
+      "handled": true
+    },
+    {
+      "module": "reports",
+      "command": "print",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "preferences",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "units",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "styles",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "images",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "calculated variables",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "events",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "engine",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "web viewer",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "database",
+      "handled": true
+    },
+    {
+      "module": "setup",
+      "command": "backup",
+      "handled": true
+    }
+  ],
+  "failures": []
+}
