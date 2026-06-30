@@ -97,11 +97,11 @@ const toolCategories: Record<PaletteCategory, { label: string; icon: string; col
   sld:     { label: 'SLD / Elec', icon: 'solar:transmission-bold-duotone', color: '#f59e0b', types: ['flowpath', 'pipe', 'cable3d', 'elecsymbol', 'bussection', 'feedlabel', 'hotspot', 'zone3d', 'zone2d', 'wall'] },
   values:  { label: 'Values', icon: 'solar:hashtag-bold-duotone', color: '#0ea5e9', types: ['value', 'gauge', 'progressbar', 'led', 'semaphore', 'multistate', 'sparkline', 'kpicard', 'formulavalue', 'statusbadge', 'clock', 'variable'] },
   charts:  { label: 'Charts', icon: 'solar:chart-square-bold-duotone', color: '#a855f7', types: ['trend', 'barchart', 'piechart', 'echart'] },
-  tables:  { label: 'Tables', icon: 'solar:bill-list-bold-duotone', color: '#10b981', types: ['tagtable', 'alarmtable', 'alarm', 'toutable'] },
+  tables:  { label: 'Tables', icon: 'solar:bill-list-bold-duotone', color: '#10b981', types: ['tagtable', 'alarmtable', 'alarm', 'toutable', 'meterbilling'] },
   control: { label: 'Controls', icon: 'solar:cursor-bold-duotone', color: '#ec4899', types: ['button', 'switch', 'slider', 'levelbar', 'navbutton', 'tabbar', 'inputfield', 'dropdown'] },
   effects: { label: 'Effects', icon: 'solar:magic-stick-bold-duotone', color: '#6366f1', types: ['sprite', 'lottie', 'viewport3d', 'scene3d'] },
   media:   { label: 'Media / Web', icon: 'solar:play-circle-bold-duotone', color: '#14b8a6', types: ['video', 'iframe', 'qrcode', 'signature'] },
-  energy:  { label: 'Energy', icon: 'solar:bolt-circle-bold-duotone', color: '#f97316', types: ['energysummary', 'powerquality', 'demandsummary'] },
+  energy:  { label: 'Energy', icon: 'solar:bolt-circle-bold-duotone', color: '#f97316', types: ['energysummary', 'powerquality', 'demandsummary', 'costsummary'] },
   document:{ label: 'Document', icon: 'solar:document-bold-duotone', color: '#64748b', types: ['headerfooter', 'pagebreak'] },
 };
 
@@ -180,10 +180,12 @@ const objectTools: Array<{
   { type: 'pagebreak',  label: 'Page Break',  icon: <Icon icon="solar:scissor-bold-duotone"            width="20" height="20" style={{ color: '#f43f5e' }} />, width: 800, height: 20 },
   { type: 'variable',   label: 'Variable',    icon: <Icon icon="solar:text-field-focus-bold-duotone"   width="20" height="20" style={{ color: '#8b5cf6' }} />, width: 150, height: 30, text: '{project_name}' },
   { type: 'toutable',   label: 'TOU Table',   icon: <Icon icon="solar:calendar-date-bold-duotone"      width="20" height="20" style={{ color: '#10b981' }} />, width: 400, height: 250 },
+  { type: 'meterbilling', label: 'Meter Billing', icon: <Icon icon="solar:bill-bold-duotone"           width="20" height="20" style={{ color: '#10b981' }} />, width: 800, height: 350 },
   // ── Energy Link
   { type: 'energysummary',label: 'Energy Sum',icon: <Icon icon="solar:bolt-circle-bold-duotone"        width="20" height="20" style={{ color: '#f59e0b' }} />, width: 300, height: 180 },
   { type: 'demandsummary',label: 'Demand Sum',icon: <Icon icon="solar:graph-new-bold-duotone"          width="20" height="20" style={{ color: '#ef4444' }} />, width: 300, height: 180 },
   { type: 'powerquality',label: 'PQ Summary', icon: <Icon icon="solar:health-bold-duotone"             width="20" height="20" style={{ color: '#06b6d4' }} />, width: 350, height: 200 },
+  { type: 'costsummary',  label: 'Cost Sum',   icon: <Icon icon="solar:cash-out-bold-duotone"          width="20" height="20" style={{ color: '#f97316' }} />, width: 500, height: 180 },
 ];
 
 function findViewportHost(

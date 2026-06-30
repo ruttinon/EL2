@@ -210,6 +210,8 @@ import {
   VariableWidget,
   QrCodeWidget,
   SignatureWidget,
+  MeterBillingWidget,
+  CostSummaryWidget,
 } from './reportWidgets';
 
 registerWidget('ellipse', EllipseWidget);
@@ -228,3 +230,5 @@ registerWidget('headerfooter', HeaderFooterWidget);
 registerWidget('variable', VariableWidget);
 registerWidget('qrcode', QrCodeWidget);
 registerWidget('signature', SignatureWidget);
+registerWidget('meterbilling', MeterBillingWidget);
+registerWidget('costsummary', CostSummaryWidget);
