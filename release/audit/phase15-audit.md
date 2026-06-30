@@ -1,12 +1,12 @@
 # EnergyLink Phase 15 Audit Result
 
-Generated: 2026-06-04T10:13:37.911Z
+Generated: 2026-06-29T09:23:28.519Z
 
-PASS: 104
+PASS: 103
 WARN: 0
-FAIL: 0
+FAIL: 1
 
-- PASS: directory exists: apps/editor-desktop
+- PASS: directory exists: apps/editor-desktop/editor-desktop
 - PASS: directory exists: apps/monitor-desktop
 - PASS: directory exists: apps/engine-manager-desktop
 - PASS: directory exists: apps/engine
@@ -22,9 +22,9 @@ FAIL: 0
 - PASS: file exists: turbo.json
 - PASS: file exists: tsconfig.base.json
 - PASS: file exists: prisma/schema.prisma
-- PASS: file exists: apps/editor-desktop/package.json
-- PASS: file exists: apps/editor-desktop/src/App.tsx
-- PASS: file exists: apps/editor-desktop/electron/main.ts
+- PASS: file exists: apps/editor-desktop/editor-desktop/package.json
+- PASS: file exists: apps/editor-desktop/editor-desktop/src/App.tsx
+- PASS: file exists: apps/editor-desktop/editor-desktop/electron/main.ts
 - PASS: file exists: apps/monitor-desktop/package.json
 - PASS: file exists: apps/monitor-desktop/src/App.tsx
 - PASS: file exists: apps/monitor-desktop/electron/main.ts
@@ -53,7 +53,7 @@ FAIL: 0
 - PASS: file exists: scripts/build-release.mjs
 - PASS: file exists: scripts/create-initial-db.py
 - PASS: valid JSON: package.json
-- PASS: valid JSON: apps/editor-desktop/package.json
+- PASS: valid JSON: apps/editor-desktop/editor-desktop/package.json
 - PASS: valid JSON: apps/monitor-desktop/package.json
 - PASS: valid JSON: apps/engine-manager-desktop/package.json
 - PASS: valid JSON: apps/engine/package.json
@@ -93,7 +93,7 @@ FAIL: 0
 - PASS: migration exists: phase28
 - PASS: migration exists: phase29
 - PASS: no prohibited development artifact filenames found
-- PASS: no blocked pattern: Math.random runtime value
+- FAIL: blocked pattern found: Math.random runtime value - apps\editor-desktop\editor-desktop\src\features\graphics\editor\objectCatalog.ts, apps\editor-desktop\editor-desktop\src\features\graphics\graphicAssets.ts, apps\editor-desktop\editor-desktop\src\features\graphics\graphicSymbols.ts, packages\graphics-runtime\src\htmlPage.ts, powerstudio_full_logic_xgmb_editor_clean\powerstudio_full_logic_xgmb_editor_clean\app.js
 - PASS: no blocked pattern: unsafe interval value pattern
 - PASS: install layout includes Program Files
 - PASS: install layout includes EnergyLink Management

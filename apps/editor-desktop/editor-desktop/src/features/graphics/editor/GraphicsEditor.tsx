@@ -23,10 +23,12 @@ import { EditorCanvas } from './EditorCanvas';
 import { InspectorPanel } from './InspectorPanel';
 import { makeObject, makeSymbolObject, makeGroupObject, findTool, toolLabel } from './objectCatalog';
 import { makeImageFromDevice } from '../deviceAssetHelpers';
+import { ScreenTemplateId, SCREEN_TEMPLATES, getTemplateInitialObjects } from './scadaPresets';
 import { importModelFileToAsset, buildExternalPageFromHtmlFile, resolveAssetRef, loadGraphicAssets } from '../graphicAssets';
 import { parseDeviceToolKey } from './DevicePalette';
 import { importSvgToLibrary } from '../graphicSymbols';
 import { resolveGraphicsToolCommand } from './graphicsEditorCommands';
+import { validateGraphic, type ValidationIssue } from './GraphicValidation';
 import { buildWallFromPoints, appendPathPoint } from './sceneBuilderPlacement';
 import { objectsFromSceneCatalogPayload } from './sceneCatalogPlacement';
 import type { SceneCatalogDropPayload } from '../GraphicsSceneCatalog';
@@ -74,11 +76,31 @@ export function GraphicsEditor() {
   const [newName, setNewName] = useState('New Graphic');
   const [newW, setNewW] = useState(1366);
   const [newH, setNewH] = useState(768);
+  const [newTemplate, setNewTemplate] = useState<ScreenTemplateId>('blank');
+  const [editorUiMode, setEditorUiMode] = useState<'simple' | 'advanced' | 'building'>(() => {
+    return (localStorage.getItem('energylink:editor-ui-mode') as any) || 'simple';
+  });
+  const changeUiMode = (newMode: 'simple' | 'advanced' | 'building') => {
+    setEditorUiMode(newMode);
+    localStorage.setItem('energylink:editor-ui-mode', newMode);
+  };
+  const [validationOpen, setValidationOpen] = useState(false);
   const [catalogCategory, setCatalogCategory] = useState<CatalogStripCategory>('equipment');
   const [armedCatalogPayload, setArmedCatalogPayload] = useState<{
     id: string;
     payload: SceneCatalogDropPayload;
     label: string;
+  } | null>(null);
+  const [safetyWriteModal, setSafetyWriteModal] = useState<{
+    isOpen: boolean;
+    tagId: string;
+    targetValue: any;
+    options?: WriteTagOptions;
+    confirmReason: string;
+    checkedInterlock: boolean;
+    checkedConfirm: boolean;
+    status: 'idle' | 'writing' | 'success' | 'error';
+    statusText: string;
   } | null>(null);
   const [armedCatalogToolId, setArmedCatalogToolId] = useState<string | null>(null);
   const [wallStart, setWallStart] = useState<{ x: number; y: number } | null>(null);
@@ -98,6 +120,10 @@ export function GraphicsEditor() {
   const htmlFocus: 'widgets' | 'html' | 'run' = runMode ? 'run' : htmlExplore ? 'html' : 'widgets';
   const width = g?.width ?? 1366;
   const height = g?.height ?? 768;
+  const validationIssues = useMemo(() => {
+    if (!g) return [];
+    return validateGraphic(doc.objects, width, height, doc.graphics);
+  }, [g, doc.objects, width, height, doc.graphics]);
   const isGlbBuilding = g ? isGlbBuildingGraphic(g.layout, width, height) : false;
   const bg = g?.layout.backgroundColor ?? '#0f172a';
   const bgImage = g?.layout.backgroundImage ?? null;
@@ -106,6 +132,38 @@ export function GraphicsEditor() {
   useEffect(() => {
     setHtmlAnchors(new Map());
   }, [doc.selectedId]);
+
+  // ── Task 9: Binding Health ──────────────────────────────────────────────────
+  const bindingHealth = useMemo(() => {
+    const total = doc.objects.filter((o) =>
+      ['value', 'gauge', 'kpicard', 'trend', 'alarmtable', 'elecsymbol', 'switch', 'button'].includes(o.type)
+    );
+    const bound = total.filter((o) => (o.tagId ?? o.binding?.tagId));
+    return { total: total.length, bound: bound.length, unbound: total.length - bound.length };
+  }, [doc.objects]);
+
+  const [auditLog, setAuditLog] = useState<any[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('energylink:hmi-audit-log') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    const onAuditChange = () => {
+      try {
+        setAuditLog(JSON.parse(localStorage.getItem('energylink:hmi-audit-log') || '[]'));
+      } catch {
+        setAuditLog([]);
+      }
+    };
+    window.addEventListener('energylink:hmi-audit-log-changed', onAuditChange);
+    return () => window.removeEventListener('energylink:hmi-audit-log-changed', onAuditChange);
+  }, []);
+
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  // ────────────────────────────────────────────────────────────────────────────
 
   const bindPlacedToHtmlAnchor = useCallback(
     (obj: GraphicObjectDefinition, x: number, y: number): GraphicObjectDefinition => {
@@ -470,6 +528,24 @@ export function GraphicsEditor() {
     [doc, zTop],
   );
 
+  const logHmiAudit = useCallback((tagId: string, value: any, reason: string) => {
+    try {
+      const log = JSON.parse(localStorage.getItem('energylink:hmi-audit-log') || '[]');
+      const newEntry = {
+        timestamp: new Date().toISOString(),
+        tagId,
+        value,
+        reason,
+        user: 'operator',
+      };
+      log.unshift(newEntry);
+      localStorage.setItem('energylink:hmi-audit-log', JSON.stringify(log.slice(0, 100)));
+      window.dispatchEvent(new Event('energylink:hmi-audit-log-changed'));
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   const handleWriteTag = useCallback(
     async (
       tagId: string,
@@ -484,7 +560,6 @@ export function GraphicsEditor() {
         value = typeof pv === 'string' ? (isBool ? pv === 'true' || pv === '1' : Number(pv)) : pv;
         if (typeof value === 'number' && !Number.isFinite(value)) return;
       } else if (isBool) {
-        if (!window.confirm(`Write to ${tagId}?`)) return;
         value = true;
       } else {
         const raw = window.prompt(`Write value to ${tagId}:`, '0');
@@ -492,11 +567,32 @@ export function GraphicsEditor() {
         value = Number(raw);
         if (!Number.isFinite(value)) return;
       }
-      if (options?.requireConfirm && !window.confirm(`Confirm write ${tagId} = ${String(value)}?`)) return;
-      const res = await editorRuntimeApi.writeTag(tagId, value);
-      if (!res.ok) doc.setNotice({ kind: 'error', text: res.message });
+
+      const needsSafetyPrompt = editorUiMode === 'simple' || options?.requireConfirm;
+
+      if (needsSafetyPrompt) {
+        setSafetyWriteModal({
+          isOpen: true,
+          tagId,
+          targetValue: value,
+          options,
+          confirmReason: '',
+          checkedInterlock: false,
+          checkedConfirm: false,
+          status: 'idle',
+          statusText: '',
+        });
+      } else {
+        const res = await editorRuntimeApi.writeTag(tagId, value);
+        if (!res.ok) {
+          doc.setNotice({ kind: 'error', text: res.message });
+        } else {
+          doc.setNotice({ kind: 'success', text: `Write ${tagId} = ${value} success` });
+          logHmiAudit(tagId, value, 'Direct Command');
+        }
+      }
     },
-    [doc],
+    [doc, editorUiMode, logHmiAudit],
   );
 
   const toggleRunMode = useCallback(() => {
@@ -626,6 +722,16 @@ export function GraphicsEditor() {
         void doc.saveGraphic();
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (doc.canUndo) doc.undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        if (doc.canRedo) doc.redo();
+        return;
+      }
       if (typing) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
         e.preventDefault();
@@ -652,6 +758,20 @@ export function GraphicsEditor() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [doc, removeSelected, selectedId, selectedObject, pickTool, disarmCatalog, groupSelection]);
+
+  // ── Task 10: Auto-save debounce ─────────────────────────────────────────────
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!doc.dirty || !doc.selectedId) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      void doc.saveGraphic();
+    }, 2500);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [doc.dirty, doc.selectedId, doc.objects]);
+  // ────────────────────────────────────────────────────────────────────────────
 
   const bindFirstTag = useCallback(() => {
     if (!selectedId || !selectedObject) {
@@ -1038,13 +1158,48 @@ export function GraphicsEditor() {
               {runMode ? <Pencil size={16} /> : <Play size={16} />}
               {runMode ? 'Edit' : 'Run'}
             </button>
+            {g ? (
+              <button
+                className="ge-live-btn"
+                style={{
+                  background: validationOpen ? '#cbd5e1' : (validationIssues.length > 0 ? '#fee2e2' : '#f0fdf4'),
+                  color: validationIssues.length > 0 ? '#ef4444' : '#22c55e',
+                  border: validationIssues.length > 0 ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+                onClick={() => setValidationOpen((v) => !v)}
+                title="Validation Checks — สแกนความสมบูรณ์และข้อผิดพลาด"
+              >
+                {validationIssues.length > 0 ? `⚠️ ${validationIssues.length} ปัญหา` : '✅ สมบูรณ์ดี'}
+              </button>
+            ) : null}
           </div>
           )}
           </>
           )}
         </div>
 
-        <div className="ge-top-right">
+        <div className="ge-top-right" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <select
+            value={editorUiMode}
+            onChange={(e) => changeUiMode(e.target.value as any)}
+            style={{
+              padding: '4px 8px',
+              fontSize: 12,
+              borderRadius: 4,
+              border: '1px solid #cbd5e1',
+              background: '#f8fafc',
+              fontWeight: 'bold',
+              color: '#334155',
+            }}
+          >
+            <option value="simple">🟢 Simple Mode (โหมดง่าย)</option>
+            <option value="advanced">🔵 Advanced Mode (โหมดขั้นสูง)</option>
+            <option value="building">🟠 Building / 3D Mode (โหมด 3D)</option>
+          </select>
           {doc.dirty ? <span className="ge-dirty">● unsaved</span> : null}
           <button className="ge-save" onClick={() => doc.saveGraphic()} disabled={doc.busy || !doc.selectedId}>
             <Save size={18} /> Save
@@ -1061,6 +1216,7 @@ export function GraphicsEditor() {
             disabled={!doc.selectedId}
             devices={doc.devices}
             onAssetsChange={refreshCatalogAssets}
+            editorUiMode={editorUiMode}
           />
         ) : null}
 
@@ -1144,6 +1300,101 @@ export function GraphicsEditor() {
               activeFloor={floorLevels.length > 0 ? activeFloor : undefined}
             />
           ) : null}
+
+          {validationOpen && g && (
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 200,
+              background: '#ffffff',
+              borderTop: '2px solid #cbd5e1',
+              zIndex: 100,
+              display: 'flex',
+              flexDirection: 'column',
+              fontFamily: 'system-ui, sans-serif'
+            }}>
+              <div style={{
+                padding: '6px 12px',
+                background: '#f8fafc',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 'bold', color: '#334155' }}>
+                  🔍 ผลการตรวจสอบความถูกต้องและกติกา (HMI Validation Summary)
+                </span>
+                <button
+                  onClick={() => setValidationOpen(false)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    color: '#64748b'
+                  }}
+                >
+                  ย่อ/ปิด [X]
+                </button>
+              </div>
+              <div style={{ overflowY: 'auto', flex: 1, padding: '8px 12px' }}>
+                {validationIssues.length === 0 ? (
+                  <div style={{ color: '#22c55e', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, padding: 12 }}>
+                    <span>🎉 ไม่พบข้อผิดพลาดหรือคำเตือนใด ๆ! หน้าจอมีความสมบูรณ์พร้อมรันได้ทันที</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {validationIssues.map((issue) => (
+                      <div
+                        key={issue.id}
+                        onClick={() => {
+                          if (issue.objectId) {
+                            handleSelect(issue.objectId);
+                          }
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          background: issue.severity === 'error' ? '#fef2f2' : '#fffbeb',
+                          border: issue.severity === 'error' ? '1px solid #fecaca' : '1px solid #fef3c7',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: 12,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{
+                              background: issue.severity === 'error' ? '#ef4444' : '#f59e0b',
+                              color: '#ffffff',
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              fontSize: 9,
+                              fontWeight: 'bold'
+                            }}>
+                              {issue.severity.toUpperCase()}
+                            </span>
+                            <strong style={{ color: '#1e293b' }}>{issue.objectName}:</strong>
+                            <span style={{ color: '#334155' }}>{issue.message}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b', paddingLeft: 46 }}>
+                            💡 <em>{issue.suggestion}</em>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 10, color: '#3b82f6', fontWeight: 'bold' }}>auto-select ⚡</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <InspectorPanel
@@ -1163,6 +1414,7 @@ export function GraphicsEditor() {
           onReorder={reorder}
           onUngroupGroup={ungroupGroup}
           onStartPathEdit={startPathEdit}
+          editorUiMode={editorUiMode}
         />
       </div>
 
@@ -1200,32 +1452,283 @@ export function GraphicsEditor() {
         <div className={`ge-notice ge-notice-${doc.notice.kind}`}>{doc.notice.text}</div>
       ) : null}
 
+      {/* ── Task 9: Binding Health + Audit Log Bar ─────────────────────── */}
+      {doc.selectedId && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '3px 12px', fontSize: 11, background: '#0f172a',
+          borderTop: '1px solid #1e293b', color: '#94a3b8', userSelect: 'none',
+        }}>
+          <span style={{ fontWeight: 600, color: '#64748b' }}>🔗 Binding Health:</span>
+          <span style={{
+            padding: '2px 7px', borderRadius: 10,
+            background: bindingHealth.unbound === 0 ? '#14532d' : '#7f1d1d',
+            color: bindingHealth.unbound === 0 ? '#86efac' : '#fca5a5', fontWeight: 700,
+          }}>
+            {bindingHealth.bound}/{bindingHealth.total} bound
+          </span>
+          {bindingHealth.unbound > 0 && (
+            <span style={{ color: '#f87171' }}>⚠ {bindingHealth.unbound} unbound object(s)</span>
+          )}
+          <span style={{ marginLeft: 'auto', cursor: 'pointer', color: '#60a5fa' }}
+            onClick={() => setShowAuditLog(prev => !prev)}>
+            📋 Audit Log ({auditLog.length}) {showAuditLog ? '▼' : '▶'}
+          </span>
+        </div>
+      )}
+
+      {/* Audit Log Drawer */}
+      {showAuditLog && doc.selectedId && (
+        <div style={{
+          position: 'absolute', right: 0, bottom: 28, width: 360, maxHeight: 260,
+          background: '#0f172a', borderLeft: '2px solid #1e40af',
+          borderTop: '2px solid #1e40af', zIndex: 60,
+          display: 'flex', flexDirection: 'column', fontSize: 11, color: '#94a3b8',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '6px 10px', background: '#1e293b', fontWeight: 700, color: '#60a5fa' }}>
+            <span>📋 HMI Audit Log (latest {Math.min(auditLog.length, 50)})</span>
+            <span style={{ cursor: 'pointer', color: '#64748b' }}
+              onClick={() => setShowAuditLog(false)}>✕</span>
+          </div>
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {auditLog.length === 0 ? (
+              <div style={{ padding: 12, color: '#475569' }}>No write commands recorded yet.</div>
+            ) : [...auditLog].reverse().slice(0, 50).map((entry: any, i: number) => (
+              <div key={i} style={{
+                padding: '5px 10px', borderBottom: '1px solid #1e293b',
+                display: 'flex', flexDirection: 'column', gap: 2,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>{entry.tagId ?? 'unknown'}</span>
+                  <span style={{ color: '#475569' }}>{entry.ts ? new Date(entry.ts).toLocaleTimeString() : ''}</span>
+                </div>
+                <div>Value: <span style={{ color: '#86efac' }}>{String(entry.value)}</span>
+                  {entry.reason ? <span style={{ color: '#fbbf24', marginLeft: 8 }}>Reason: {entry.reason}</span> : null}
+                </div>
+                {entry.operator ? <div style={{ color: '#64748b' }}>Op: {entry.operator}</div> : null}
+              </div>
+            ))}
+          </div>
+          {auditLog.length > 0 && (
+            <div style={{ padding: '4px 10px', background: '#1e293b', textAlign: 'right' }}>
+              <button style={{ fontSize: 10, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={() => {
+                  if (window.confirm('Clear all audit log entries?')) {
+                    localStorage.removeItem('energylink:hmi-audit-log');
+                    window.dispatchEvent(new Event('energylink:hmi-audit-log-changed'));
+                  }
+                }}>🗑 Clear Log</button>
+            </div>
+          )}
+        </div>
+      )}
+      {/* ───────────────────────────────────────────────────────────────── */}
+
       {/* New graphic modal */}
       {showNew ? (
         <div className="ge-modal-overlay" onClick={() => setShowNew(false)}>
-          <div className="ge-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>New Graphic</h3>
-            <label className="ins-row"><span>Name</span>
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
-            </label>
-            <div className="ins-grid2">
-              <label className="ins-row"><span>Width</span>
-                <input type="number" value={newW} onChange={(e) => setNewW(Number(e.target.value))} />
+          <div className="ge-modal" onClick={(e) => e.stopPropagation()} style={{ width: 'auto', maxWidth: '90vw' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 550, maxHeight: '85vh' }}>
+              <h3 style={{ margin: 0, fontSize: 16, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>สร้างหน้าจอใหม่ (Screen Wizard)</h3>
+              
+              <label className="ins-row">
+                <span>ชื่อหน้าจอ (Name)</span>
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
               </label>
-              <label className="ins-row"><span>Height</span>
-                <input type="number" value={newH} onChange={(e) => setNewH(Number(e.target.value))} />
+              
+              <div className="ins-grid2">
+                <label className="ins-row">
+                  <span>ความกว้าง W (Width)</span>
+                  <input type="number" value={newW} onChange={(e) => setNewW(Number(e.target.value))} />
+                </label>
+                <label className="ins-row">
+                  <span>ความสูง H (Height)</span>
+                  <input type="number" value={newH} onChange={(e) => setNewH(Number(e.target.value))} />
+                </label>
+              </div>
+
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: 6 }}>เลือกเทมเพลต (Choose Template)</span>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 8,
+                  maxHeight: 240,
+                  overflowY: 'auto',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  padding: 8,
+                  background: '#f8fafc'
+                }}>
+                  {SCREEN_TEMPLATES.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        setNewTemplate(t.id);
+                        if (t.id === 'blank' || t.id === 'html_overlay' || t.id === 'glb_building') {
+                          // keep defaults
+                        } else {
+                          setNewW(1366);
+                          setNewH(768);
+                        }
+                      }}
+                      style={{
+                        padding: 8,
+                        borderRadius: 4,
+                        border: newTemplate === t.id ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                        background: newTemplate === t.id ? '#eff6ff' : '#ffffff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <strong style={{ fontSize: 12, color: newTemplate === t.id ? '#1e40af' : '#1e293b' }}>{t.label}</strong>
+                      <span style={{ fontSize: 10, color: '#64748b', lineHeight: 1.2 }}>{t.description}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="ge-modal-actions" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e2e8f0' }}>
+                <button onClick={() => setShowNew(false)}>Cancel</button>
+                <button
+                  className="ge-save"
+                  onClick={async () => {
+                    const initialObjects = getTemplateInitialObjects(newTemplate, newW, newH);
+                    const layoutPatch: any = {};
+                    if (newTemplate === 'html_overlay') {
+                      layoutPatch.pageKind = 'html';
+                      layoutPatch.externalPage = { sandbox: 'strict', htmlContent: '<div style="color:white;padding:20px;"><h1>HTML Overlay</h1><p>วาง Widget ทับบนหน้านี้ได้เลย</p></div>' };
+                    } else if (newTemplate === 'glb_building') {
+                      layoutPatch.defaultCamera = 'orbit';
+                      const buildingObj = {
+                        id: `scene3d_${Date.now()}`,
+                        type: 'scene3d',
+                        x: 0,
+                        y: 0,
+                        width: newW,
+                        height: newH,
+                        layer: 1,
+                        style: {
+                          glbUrl: '',
+                          sceneBuildMode: 'glb',
+                          lightIntensity: 1,
+                        }
+                      };
+                      initialObjects.push(buildingObj);
+                    } else if (newTemplate === 'building_3d') {
+                      layoutPatch.defaultCamera = 'orbit';
+                    }
+                    await doc.createGraphic(newName, Math.max(320, newW), Math.max(240, newH), initialObjects, layoutPatch);
+                    setShowNew(false);
+                  }}
+                >
+                  Create Screen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {safetyWriteModal && safetyWriteModal.isOpen ? (
+        <div className="ge-modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="ge-modal" style={{ width: 450, padding: 20 }}>
+            <h3 style={{ margin: 0, fontSize: 16, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid #fca5a5', paddingBottom: 8 }}>
+              ⚠️ ยืนยันคำสั่งควบคุมความปลอดภัย (Command Safety Panel)
+            </h3>
+            
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, background: '#f8fafc', padding: 10, borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <div><strong>อุปกรณ์/Tag:</strong> <code style={{ color: '#1e293b', fontWeight: 'bold' }}>{safetyWriteModal.tagId}</code></div>
+              <div><strong>ค่าที่กำลังส่ง (Target Value):</strong> <span style={{ background: '#3b82f6', color: '#ffffff', padding: '2px 6px', borderRadius: 4, fontWeight: 'bold' }}>{String(safetyWriteModal.targetValue)}</span></div>
+            </div>
+
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 'bold', color: '#475569' }}>ตรวจสอบมาตรการความปลอดภัยหน้างาน:</span>
+              
+              <label style={{ display: 'flex', gap: 8, fontSize: 12, cursor: 'pointer', color: '#1e293b' }}>
+                <input
+                  type="checkbox"
+                  checked={safetyWriteModal.checkedInterlock}
+                  onChange={(e) => setSafetyWriteModal((v) => v ? { ...v, checkedInterlock: e.target.checked } : null)}
+                />
+                <span>ฉันตรวจสอบ interlock/เงื่อนไขความปลอดภัยจริงแล้ว</span>
+              </label>
+
+              <label style={{ display: 'flex', gap: 8, fontSize: 12, cursor: 'pointer', color: '#1e293b' }}>
+                <input
+                  type="checkbox"
+                  checked={safetyWriteModal.checkedConfirm}
+                  onChange={(e) => setSafetyWriteModal((v) => v ? { ...v, checkedConfirm: e.target.checked } : null)}
+                />
+                <span>ยืนยันการเปลี่ยนสถานะ Tag นี้ในระบบ SCADA</span>
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#475569', marginTop: 4 }}>
+                เหตุผลสั่งการสั่งเขียนค่า (Reason is required):
+                <input
+                  type="text"
+                  placeholder="ระบุเหตุผลการเขียนคำสั่งควบคุม..."
+                  value={safetyWriteModal.confirmReason}
+                  onChange={(e) => setSafetyWriteModal((v) => v ? { ...v, confirmReason: e.target.value } : null)}
+                  style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #cbd5e1', outline: 'none' }}
+                />
               </label>
             </div>
-            <div className="ge-modal-actions">
-              <button onClick={() => setShowNew(false)}>Cancel</button>
+
+            {safetyWriteModal.status !== 'idle' && (
+              <div style={{
+                marginTop: 10,
+                padding: '6px 10px',
+                borderRadius: 4,
+                fontSize: 12,
+                textAlign: 'center',
+                background: safetyWriteModal.status === 'writing' ? '#eff6ff' : safetyWriteModal.status === 'success' ? '#f0fdf4' : '#fef2f2',
+                color: safetyWriteModal.status === 'writing' ? '#1d4ed8' : safetyWriteModal.status === 'success' ? '#166534' : '#991b1b',
+                fontWeight: 'bold'
+              }}>
+                {safetyWriteModal.status === 'writing' ? 'กำลังส่งคำสั่งไปยัง Controller...' : safetyWriteModal.status === 'success' ? 'ส่งคำสั่งสำเร็จ!' : `ล้มเหลว: ${safetyWriteModal.statusText}`}
+              </div>
+            )}
+
+            <div className="ge-modal-actions" style={{ marginTop: 16, paddingTop: 8, borderTop: '1px solid #e2e8f0' }}>
+              <button
+                onClick={() => setSafetyWriteModal(null)}
+                disabled={safetyWriteModal.status === 'writing'}
+              >
+                Cancel
+              </button>
               <button
                 className="ge-save"
+                disabled={
+                  !safetyWriteModal.checkedInterlock ||
+                  !safetyWriteModal.checkedConfirm ||
+                  !safetyWriteModal.confirmReason.trim() ||
+                  safetyWriteModal.status === 'writing'
+                }
+                style={{
+                  background: (!safetyWriteModal.checkedInterlock || !safetyWriteModal.checkedConfirm || !safetyWriteModal.confirmReason.trim()) ? '#cbd5e1' : '#ef4444',
+                  color: '#ffffff'
+                }}
                 onClick={async () => {
-                  await doc.createGraphic(newName, Math.max(320, newW), Math.max(240, newH));
-                  setShowNew(false);
+                  setSafetyWriteModal((v) => v ? { ...v, status: 'writing' } : null);
+                  const res = await editorRuntimeApi.writeTag(safetyWriteModal.tagId, safetyWriteModal.targetValue);
+                  if (res.ok) {
+                    setSafetyWriteModal((v) => v ? { ...v, status: 'success' } : null);
+                    logHmiAudit(safetyWriteModal.tagId, safetyWriteModal.targetValue, safetyWriteModal.confirmReason);
+                    setTimeout(() => {
+                      setSafetyWriteModal(null);
+                      doc.setNotice({ kind: 'success', text: `Write ${safetyWriteModal.tagId} = ${safetyWriteModal.targetValue} success` });
+                    }, 1000);
+                  } else {
+                    setSafetyWriteModal((v) => v ? { ...v, status: 'error', statusText: res.message || 'Error occurred' } : null);
+                  }
                 }}
               >
-                Create
+                Execute Command ⚡
               </button>
             </div>
           </div>

@@ -28,7 +28,8 @@ export type GraphicObjectType =
   | 'qrcode' | 'signature' 
   | 'variable' 
   | 'toutable' 
-  | 'energysummary' | 'powerquality' | 'demandsummary';
+  | 'energysummary' | 'powerquality' | 'demandsummary'
+  | 'meterbilling' | 'costsummary';
 
 export type GraphicObjectBinding = {
   tagId?: string | null;

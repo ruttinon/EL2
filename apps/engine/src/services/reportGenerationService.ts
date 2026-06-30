@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 import ExcelJS from 'exceljs';
 import { getReportsDir } from '@energylink/shared-data';
 import { getPrismaClient } from './database.js';
@@ -368,6 +369,38 @@ function objectTagIds(obj: any): string[] {
   return Array.from(ids);
 }
 
+function resolveReportImageSource(obj: any): string | Buffer | null {
+  if (!obj) return null;
+  const src = obj.imageDataUrl || obj.props?.imageDataUrl || obj.style?.imageDataUrl || obj.props?.src || obj.src;
+  if (!src) return null;
+
+  if (typeof src === 'string') {
+    if (src.startsWith('data:image/')) {
+      try {
+        const parts = src.split(',');
+        if (parts.length > 1) {
+          return Buffer.from(parts[1], 'base64');
+        }
+      } catch (err) {
+        console.error('Failed to parse base64 image data URL:', err);
+      }
+    } else {
+      // Local path check
+      try {
+        if (fs.existsSync(src)) {
+          const stat = fs.statSync(src);
+          if (stat.isFile()) {
+            return src;
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }
+  return null;
+}
+
 function drawSimpleQr(doc: InstanceType<typeof PDFDocument>, x: number, y: number, w: number, h: number, color: string) {
   const size = Math.min(w, h) - 8;
   if (size <= 0) return;
@@ -400,6 +433,13 @@ function appendDefaultBillingSection(
   doc.moveDown(0.4);
   doc.fontSize(10);
   doc.text(`Tariff: ${bill.tariffName} (${bill.tariffMode})`);
+  if (bill.warnings && bill.warnings.length > 0) {
+    doc.save().fillColor('#dc2626').fontSize(9);
+    for (const w of bill.warnings) {
+      doc.text(`⚠️ Warning: ${w}`);
+    }
+    doc.restore().fontSize(10);
+  }
   doc.text(`Total kWh: ${formatValue(bill.totalKwh)} | Import: ${formatValue(bill.importKwh)} | Export: ${formatValue(bill.exportKwh)}`);
   doc.text(`Energy: ${formatValue(bill.energyCost)} ${bill.currency} | Demand (${formatValue(bill.peakDemandKw)} kW): ${formatValue(bill.demandCost)} ${bill.currency}`);
   doc.text(`Subtotal: ${formatValue(bill.subtotal)} | VAT: ${formatValue(bill.vat)} | Grand Total: ${formatValue(bill.grandTotal)} ${bill.currency}`);
@@ -432,8 +472,9 @@ function writePdf(
   report: any,
   data: Awaited<ReturnType<typeof buildReportData>>,
   periodCache: ObjectPeriodCache,
+  traceList?: any[],
 ) {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>(async (resolve, reject) => {
     const isLandscape = report.orientation !== 'portrait';
     const pdfWidth = isLandscape ? 841.89 : 595.28;
     const pdfHeight = isLandscape ? 595.28 : 841.89;
@@ -562,9 +603,16 @@ function writePdf(
           doc.fillColor(textCol).fontSize(Math.max(7, fontSize * 0.8));
           doc.text(obj.text || 'Sign Here', ox + 4, lineY + 5, { width: ow - 8, align: 'center' });
         } else if (objectType === 'qrcode') {
-          drawSimpleQr(doc, ox, oy, ow, oh, textCol);
-          if (obj.props?.qrData) {
-            doc.fontSize(Math.max(6, fontSize * 0.55)).text(String(obj.props.qrData), ox + 4, oy + oh - fontSize, { width: ow - 8, align: 'center' });
+          const qrText = obj.props?.qrData || obj.props?.value || obj.text || report.name || report.projectId || 'EnergyLink';
+          try {
+            const qrBuffer = await QRCode.toBuffer(qrText, { type: 'png', width: 256, margin: 1 });
+            doc.image(qrBuffer, ox, oy, { width: ow, height: oh });
+          } catch (err) {
+            console.error('Failed to generate QR Code:', err);
+            drawSimpleQr(doc, ox, oy, ow, oh, textCol);
+            if (obj.props?.qrData) {
+              doc.fontSize(Math.max(6, fontSize * 0.55)).text(String(obj.props.qrData), ox + 4, oy + oh - fontSize, { width: ow - 8, align: 'center' });
+            }
           }
         } else if (objectType === 'formula') {
           const slice = objectDataSlice(obj, report, data, periodCache);
@@ -595,7 +643,35 @@ function writePdf(
           const metric = String(obj.props?.fieldMetric ?? obj.props?.valueMode ?? 'last') as ReportFieldMetric;
           const dp = typeof style.decimalPlaces === 'number' ? style.decimalPlaces : 2;
           const value = resolveFieldMetricValue(metric, tagSum, null);
-          let display = formatReportFormulaResult(value, dp);
+
+          const cb = obj.props?.calculationBinding ?? {};
+          const ctRatio = Number(cb.ctRatio ?? obj.props?.ctRatio ?? 1);
+          const ptRatio = Number(cb.ptRatio ?? obj.props?.ptRatio ?? 1);
+          const multiplier = Number(cb.multiplier ?? obj.props?.multiplier ?? 1);
+          const scale = Number(cb.scale ?? obj.props?.scale ?? 1);
+          const offset = Number(cb.offset ?? obj.props?.offset ?? 0);
+
+          let finalValue = value;
+          if (value != null) {
+            finalValue = value * ctRatio * ptRatio * multiplier * scale + offset;
+          }
+
+          if (traceList) {
+            traceList.push({
+              objectId: obj.id,
+              objectName: obj.name ?? obj.text ?? 'Value object',
+              tagId,
+              rawValue: value,
+              ctRatio,
+              ptRatio,
+              multiplier,
+              scale,
+              offset,
+              finalValue,
+            });
+          }
+
+          let display = formatReportFormulaResult(finalValue, dp);
           const unit = String(obj.style?.unit ?? tagSum?.unit ?? '').trim();
           if (unit && display !== '—') display = `${display} ${unit}`;
           if (String(obj.type).toLowerCase() === 'kpicard') {
@@ -772,7 +848,29 @@ function writePdf(
             currentY += rowH;
           }
         } else if (objectType === 'image') {
-          doc.text('[Image Object]', ox + 4, oy + 4, { width: ow - 8, align: 'center' });
+          try {
+            const imageSrc = resolveReportImageSource(obj);
+            if (imageSrc) {
+              doc.image(imageSrc, ox, oy, { fit: [ow, oh], align: 'center', valign: 'center' });
+            } else {
+              // Draw a placeholder frame
+              doc.save()
+                 .lineWidth(1)
+                 .rect(ox, oy, ow, oh)
+                 .dash(4, { space: 2 })
+                 .strokeColor('#cbd5e1')
+                 .stroke()
+                 .restore();
+              doc.fillColor('#94a3b8')
+                 .fontSize(fontSize * 0.65 || 9)
+                 .text('Image not available', ox + 4, oy + (oh - 10) / 2, { width: ow - 8, align: 'center' });
+            }
+          } catch (err) {
+            console.error('Failed to render image in report PDF generation:', err);
+            doc.fillColor('#ef4444')
+               .fontSize(fontSize * 0.65 || 9)
+               .text('Image error', ox + 4, oy + (oh - 10) / 2, { width: ow - 8, align: 'center' });
+          }
         }
       }
     }
@@ -786,6 +884,7 @@ async function writeExcel(
   report: any,
   data: Awaited<ReturnType<typeof buildReportData>>,
   periodCache: ObjectPeriodCache,
+  traceList?: any[],
 ) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'EnergyLink Management';
@@ -809,6 +908,15 @@ async function writeExcel(
       ['--- Energy Billing ---'],
       ['Tariff', b.tariffName],
       ['Mode', b.tariffMode],
+    ]);
+
+    if (b.warnings && b.warnings.length > 0) {
+      for (const w of b.warnings) {
+        summary.addRow([`⚠️ Warning`, w]);
+      }
+    }
+
+    summary.addRows([
       ['Total kWh', b.totalKwh],
       ['Energy Cost', b.energyCost],
       ['Demand Cost', b.demandCost],
@@ -981,8 +1089,10 @@ export async function generateReport(options: GenerateReportOptions) {
   const fileName = `${sanitizeFileName(report.name)}_${timestamp}.${extension}`;
   const filePath = path.join(reportsDir, fileName);
 
-  if (format === 'excel') await writeExcel(filePath, report, data, periodCache);
-  else writePdf(filePath, report, data, periodCache);
+  const traceList: any[] = [];
+
+  if (format === 'excel') await writeExcel(filePath, report, data, periodCache, traceList);
+  else writePdf(filePath, report, data, periodCache, traceList);
 
   appendEngineLog('info', 'Report generated from real stored data', {
     reportId: report.id,
@@ -1005,6 +1115,7 @@ export async function generateReport(options: GenerateReportOptions) {
     sizeBytes: stat.size,
     generatedAt: new Date().toISOString(),
     period: { from: range.from.toISOString(), to: range.to.toISOString(), label: range.label },
+    calculationTrace: traceList,
     source: {
       historyCount: data.historyCount,
       alarmCount: data.alarmCount,

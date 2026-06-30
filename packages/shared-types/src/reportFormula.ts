@@ -2,11 +2,16 @@
 
 export type ReportPeriodPreset =
   | 'today'
+  | 'yesterday'
   | 'this_week'
+  | 'last_week'
   | 'this_month'
   | 'last_month'
   | 'this_year'
   | 'last_year'
+  | 'last_24h'
+  | 'last_7d'
+  | 'last_30d'
   | 'daily'
   | 'weekly'
   | 'monthly'
@@ -28,6 +33,10 @@ export type ReportTagPeriodSummary = {
   lastValue: number | null;
   usageValue: number | null;
   averageValue: number | null;
+  minValue?: number | null;
+  maxValue?: number | null;
+  peakValue?: number | null;
+  sumValue?: number | null;
   ratePerUnit?: number | null;
   amount?: number | null;
 };
@@ -43,7 +52,18 @@ export type ReportBillingFormulaContext = {
   currency?: string;
 };
 
-export type ReportFieldMetric = 'live' | 'last' | 'first' | 'usage';
+export type ReportFieldMetric =
+  | 'live'
+  | 'first'
+  | 'last'
+  | 'usage'
+  | 'avg'
+  | 'average'
+  | 'min'
+  | 'max'
+  | 'peak'
+  | 'sum'
+  | 'count';
 
 export const REPORT_BILLING_FORMULA_TOKENS = [
   { token: '@totalKwh', label: 'Total kWh' },
@@ -60,12 +80,30 @@ export const REPORT_TAG_FORMULA_TOKENS = [
   { token: '@last', label: 'Last reading (primary tag)' },
   { token: '@usage', label: 'Usage Δ (primary tag)' },
   { token: '@amount', label: 'Cost for primary usage' },
+  { token: '@avg', label: 'Average reading (primary tag)' },
+  { token: '@min', label: 'Min reading (primary tag)' },
+  { token: '@max', label: 'Max reading (primary tag)' },
+  { token: '@peak', label: 'Peak reading (primary tag)' },
+  { token: '@count', label: 'Count of readings (primary tag)' },
+  { token: '@sum', label: 'Sum of readings (primary tag)' },
   { token: '@A.first', label: 'Tag A — first' },
   { token: '@A.last', label: 'Tag A — last' },
   { token: '@A.usage', label: 'Tag A — usage' },
+  { token: '@A.avg', label: 'Tag A — average' },
+  { token: '@A.min', label: 'Tag A — min' },
+  { token: '@A.max', label: 'Tag A — max' },
+  { token: '@A.peak', label: 'Tag A — peak' },
+  { token: '@A.sum', label: 'Tag A — sum' },
+  { token: '@A.count', label: 'Tag A — count' },
   { token: '@B.first', label: 'Tag B — first' },
   { token: '@B.last', label: 'Tag B — last' },
   { token: '@B.usage', label: 'Tag B — usage' },
+  { token: '@B.avg', label: 'Tag B — average' },
+  { token: '@B.min', label: 'Tag B — min' },
+  { token: '@B.max', label: 'Tag B — max' },
+  { token: '@B.peak', label: 'Tag B — peak' },
+  { token: '@B.sum', label: 'Tag B — sum' },
+  { token: '@B.count', label: 'Tag B — count' },
 ] as const;
 
 const FORMULA_SAFE = /^[\d\s.+\-*/()eE]+$/;
@@ -77,8 +115,21 @@ export function isEnergyLikeTag(unit?: string | null, tagName?: string | null): 
 }
 
 export function normalizeObjectPeriod(period?: string | null): ReportPeriodPreset | undefined {
-  const p = String(period ?? '').toLowerCase();
+  const p = String(period ?? '').toLowerCase().trim();
   if (!p) return undefined;
+  if (p === 'thismonth' || p === 'this_month' || p === 'month' || p === 'monthly') return 'this_month';
+  if (p === 'lastmonth' || p === 'last_month') return 'last_month';
+  if (p === 'thisweek' || p === 'this_week' || p === 'week' || p === 'weekly') return 'this_week';
+  if (p === 'lastweek' || p === 'last_week') return 'last_week';
+  if (p === 'today' || p === 'daily') return 'today';
+  if (p === 'yesterday') return 'yesterday';
+  if (p === '24h' || p === 'last_24h') return 'last_24h';
+  if (p === '7d' || p === 'last_7d') return 'last_7d';
+  if (p === '30d' || p === 'last_30d') return 'last_30d';
+  if (p === 'thisyear' || p === 'this_year' || p === 'yearly') return 'this_year';
+  if (p === 'lastyear' || p === 'last_year') return 'last_year';
+  if (p === 'custom') return 'custom';
+  
   if (['daily', 'weekly', 'monthly', 'yearly'].includes(p)) return p as ReportPeriodPreset;
   if (['today', 'this_week', 'this_month', 'last_month', 'this_year', 'last_year', 'custom'].includes(p)) {
     return p as ReportPeriodPreset;
@@ -108,7 +159,7 @@ export function resolveReportDateRange(input: {
   const objectPeriod = normalizeObjectPeriod(input.objectPeriod);
   let rangeKey = objectPeriod
     ?? normalizeObjectPeriod(input.reportDefaultRange)
-    ?? String(input.reportDefaultRange ?? 'today').toLowerCase();
+    ?? String(input.reportDefaultRange ?? 'today').toLowerCase().trim();
 
   if (rangeKey === 'monthly' || rangeKey === 'this_month' || input.reportType === 'monthly_energy') {
     return {
@@ -123,6 +174,33 @@ export function resolveReportDateRange(input: {
       to: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
       label: 'last_month',
     };
+  }
+  if (rangeKey === 'yesterday') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+    return { from: start, to: end, label: 'yesterday' };
+  }
+  if (rangeKey === 'last_24h') {
+    const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return { from: start, to: now, label: 'last_24h' };
+  }
+  if (rangeKey === 'last_7d') {
+    const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return { from: start, to: now, label: 'last_7d' };
+  }
+  if (rangeKey === 'last_30d') {
+    const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return { from: start, to: now, label: 'last_30d' };
+  }
+  if (rangeKey === 'last_week') {
+    const day = now.getDay() || 7;
+    const start = new Date(now);
+    start.setDate(now.getDate() - day - 6);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return { from: start, to: end, label: 'last_week' };
   }
   if (rangeKey === 'yearly' || rangeKey === 'this_year') {
     return {
@@ -176,6 +254,9 @@ export function tagSummaryFromHistoryRows(
   const usageValue = energy && firstValue != null && lastValue != null
     ? Math.max(0, lastValue - firstValue)
     : null;
+  const min = values.length ? Math.min(...values) : null;
+  const max = values.length ? Math.max(...values) : null;
+  const sum = values.length ? values.reduce((s, v) => s + v, 0) : null;
 
   return {
     tagId,
@@ -186,6 +267,10 @@ export function tagSummaryFromHistoryRows(
     lastValue,
     usageValue,
     averageValue: avg,
+    minValue: min,
+    maxValue: max,
+    peakValue: max,
+    sumValue: sum,
   };
 }
 
@@ -206,7 +291,7 @@ export function enrichTagSummariesWithBilling(
   });
 }
 
-type TagMetric = 'first' | 'last' | 'usage' | 'rate' | 'amount' | 'default';
+type TagMetric = 'first' | 'last' | 'usage' | 'rate' | 'amount' | 'avg' | 'average' | 'min' | 'max' | 'peak' | 'sum' | 'count' | 'default';
 
 function metricValue(tag: ReportTagPeriodSummary | undefined, metric: TagMetric): number | null {
   if (!tag) return null;
@@ -214,6 +299,13 @@ function metricValue(tag: ReportTagPeriodSummary | undefined, metric: TagMetric)
     case 'first': return tag.firstValue;
     case 'last': return tag.lastValue;
     case 'usage': return tag.usageValue ?? (isEnergyLikeTag(tag.unit, tag.tagName) ? null : tag.lastValue);
+    case 'avg':
+    case 'average': return tag.averageValue ?? null;
+    case 'min': return tag.minValue ?? null;
+    case 'max':
+    case 'peak': return tag.peakValue ?? tag.maxValue ?? null;
+    case 'sum': return tag.sumValue ?? null;
+    case 'count': return tag.count ?? null;
     case 'rate': return tag.ratePerUnit ?? null;
     case 'amount': return tag.amount ?? null;
     default:
@@ -252,8 +344,10 @@ export function evaluateReportFormulaExpression(
   const summaryById = new Map(tagSummaries.map((t) => [t.tagId, t]));
   let expr = trimmed;
 
+  const metricsList = ['first', 'last', 'usage', 'rate', 'amount', 'avg', 'average', 'min', 'max', 'peak', 'sum', 'count'] as const;
+
   for (const tag of tagSummaries) {
-    for (const metric of ['first', 'last', 'usage', 'rate', 'amount'] as const) {
+    for (const metric of metricsList) {
       expr = replaceToken(expr, `{${tag.tagId}.${metric}}`, metricValue(tag, metric));
     }
     const fallback = metricValue(tag, 'default');
@@ -279,9 +373,15 @@ export function evaluateReportFormulaExpression(
   expr = replaceToken(expr, '@last', metricValue(primary, 'last'));
   expr = replaceToken(expr, '@usage', metricValue(primary, 'usage'));
   expr = replaceToken(expr, '@amount', metricValue(primary, 'amount'));
+  expr = replaceToken(expr, '@avg', metricValue(primary, 'avg'));
+  expr = replaceToken(expr, '@min', metricValue(primary, 'min'));
+  expr = replaceToken(expr, '@max', metricValue(primary, 'max'));
+  expr = replaceToken(expr, '@peak', metricValue(primary, 'peak'));
+  expr = replaceToken(expr, '@sum', metricValue(primary, 'sum'));
+  expr = replaceToken(expr, '@count', metricValue(primary, 'count'));
 
   for (const letter of ['A', 'B', 'C', 'D', 'E', 'F']) {
-    for (const metric of ['first', 'last', 'usage', 'rate', 'amount'] as const) {
+    for (const metric of metricsList) {
       expr = replaceLetterMetric(expr, letter, metric, tagIds, summaryById);
     }
   }
@@ -322,6 +422,11 @@ export function resolveFieldMetricValue(
   if (metric === 'first') return summary.firstValue;
   if (metric === 'last') return summary.lastValue;
   if (metric === 'usage') return metricValue(summary, 'usage');
+  if (metric === 'avg' || metric === 'average') return summary.averageValue ?? null;
+  if (metric === 'min') return summary.minValue ?? null;
+  if (metric === 'max' || metric === 'peak') return summary.peakValue ?? summary.maxValue ?? null;
+  if (metric === 'sum') return summary.sumValue ?? null;
+  if (metric === 'count') return summary.count ?? null;
   return summary.lastValue ?? liveValue ?? null;
 }
 

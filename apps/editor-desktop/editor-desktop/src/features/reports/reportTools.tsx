@@ -146,7 +146,30 @@ const REPORT_ONLY_TOOLS: ReportToolDefinition[] = [
   },
   { type: 'energy_summary', label: 'สรุปพลังงาน', category: 'Billing', icon: toolIcon('solar:bolt-bold-duotone', '#f59e0b'), aliases: ['energy'] },
   { type: 'cost_summary', label: 'สรุปค่าใช้จ่าย', category: 'Billing', icon: toolIcon('solar:wallet-money-bold-duotone', '#10b981'), aliases: ['cost'] },
+  { type: 'carbon_summary', label: 'สรุปคาร์บอน (Carbon)', category: 'Billing', icon: toolIcon('solar:leaf-bold-duotone', '#059669'), aliases: ['carbon'] },
+  { type: 'device_status_table', label: 'ตารางสถานะอุปกรณ์', category: 'Tables', icon: toolIcon('solar:server-bold-duotone', '#4f46e5') },
+  { type: 'meter_reading_table', label: 'ตารางจดหน่วยมิเตอร์', category: 'Tables', icon: toolIcon('solar:clipboard-list-bold-duotone', '#0ea5e9') },
+  { type: 'project_info_box', label: 'กล่องข้อมูลโครงการ', category: 'Layout', icon: toolIcon('solar:info-square-bold-duotone', '#64748b') },
+  { type: 'company_header', label: 'หัวกระดาษบริษัท', category: 'Layout', icon: toolIcon('solar:letter-bold-duotone', '#3b82f6') },
+  { type: 'report_footer', label: 'ท้ายกระดาษรายงาน', category: 'Layout', icon: toolIcon('solar:document-bold-duotone', '#64748b') },
+  { type: 'approval_block', label: 'กล่องอนุมัติรายงาน', category: 'Layout', icon: toolIcon('solar:user-check-bold-duotone', '#10b981') },
+  { type: 'remark_box', label: 'กล่องหมายเหตุ/บันทึก', category: 'Layout', icon: toolIcon('solar:chat-square-line-bold-duotone', '#8b5cf6') },
 ];
+
+const SUPPORTED_TOOL_TYPES = new Set<string>([
+  'text', 'image', 'line', 'rectangle', 'circle', 'polygon',
+  'date', 'page_number', 'signature', 'qrcode', 'value', 'kpicard', 'formulavalue',
+  'trend', 'echart', 'tagtable', 'alarmtable',
+  'meter_billing_table', 'energy_summary', 'cost_summary', 'carbon_summary',
+  'device_status_table', 'meter_reading_table', 'project_info_box',
+  'company_header', 'report_footer', 'approval_block', 'remark_box'
+]);
+
+const WEB_ONLY_TOOL_TYPES = new Set<string>([
+  'button', 'switch', 'slider', 'inputfield', 'dropdown', 'tabbar',
+  'video', 'iframe', 'gauge', 'progressbar', 'levelbar', 'clock',
+  'multistate', 'semaphore', 'status', 'statusbadge', 'hotspot'
+]);
 
 function uniqueReportTools(tools: ReportToolDefinition[]): ReportToolDefinition[] {
   const seen = new Set<string>();
@@ -160,7 +183,9 @@ function uniqueReportTools(tools: ReportToolDefinition[]): ReportToolDefinition[
 
 /** Single source of truth for report designer tools: Graphic registry + report-only tools. */
 export const REPORT_OBJECT_TOOLS: ReportToolDefinition[] = uniqueReportTools([
-  ...listPaletteWidgets().map(reportToolFromWidget),
+  ...listPaletteWidgets()
+    .map(reportToolFromWidget)
+    .filter((tool) => SUPPORTED_TOOL_TYPES.has(tool.type) || WEB_ONLY_TOOL_TYPES.has(tool.type)),
   ...REPORT_ONLY_TOOLS,
 ]);
 

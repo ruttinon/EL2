@@ -4,6 +4,8 @@ import type { ReportToolSettingField } from './reportSettingTypes';
 import { getPresetsForTool } from './reportSettingPresets';
 import { mapObjectToSettings, mapSettingsToObject } from './reportSettingMapper';
 import { getReportToolSettingsSchema } from './reportToolSettingsRegistry';
+import { Icon } from '@iconify/react';
+import { getExportSupport } from '../reportExportSupportMatrix';
 import {
   validateReportObjectSettings,
   type ReportObjectValidationIssue,
@@ -11,16 +13,17 @@ import {
 } from './reportSettingValidator';
 
 const SECTION_LABELS: Record<string, string> = {
-  general: 'General',
-  binding: 'Binding',
-  data: 'Data',
-  style: 'Appearance',
-  table: 'Table',
-  chart: 'Chart',
-  billing: 'Billing',
-  behavior: 'Behavior',
-  export: 'Export',
-  advanced: 'Advanced',
+  general: 'ข้อมูลเบื้องต้น (Basic)',
+  binding: 'แหล่งข้อมูล (Data Source)',
+  calculation: 'การคำนวณสูตร (Calculation)',
+  data: 'ตัวเลือกข้อมูล (Data Options)',
+  style: 'การตกแต่ง (Appearance)',
+  table: 'การตั้งค่าตาราง (Table)',
+  chart: 'การตั้งค่ากราฟ (Chart)',
+  billing: 'การคิดค่าไฟ (Billing)',
+  behavior: 'พฤติกรรม (Behavior)',
+  export: 'การส่งออก (Export)',
+  advanced: 'ขั้นสูง (Advanced)',
 };
 
 const SECTION_ORDER = [
@@ -35,6 +38,32 @@ const SECTION_ORDER = [
   'export',
   'advanced',
 ] as const;
+
+function fieldIssuesFor(
+  issues: ReportObjectValidationIssue[],
+  fieldKey: string,
+) {
+  return issues.filter((issue) => issue.field === fieldKey);
+}
+
+function fieldValue(field: ReportToolSettingField, settings: Record<string, unknown>) {
+  const value = settings[field.key];
+
+  if (field.type === 'boolean') {
+    return Boolean(value ?? field.defaultValue ?? false);
+  }
+
+  if (field.type === 'multiTagPicker') {
+    return normalizeStringArray(value ?? field.defaultValue ?? []);
+  }
+
+  if (field.type === 'columnBuilder') {
+    return normalizeStringArray(value ?? field.defaultValue ?? []);
+  }
+
+  if (value !== undefined && value !== null) return value;
+  return field.defaultValue ?? '';
+}
 
 const STATUS_META: Record<
   ReportSettingCompletenessState,
@@ -143,30 +172,164 @@ function buildDefaultSettings(
   return defaults;
 }
 
-function fieldIssuesFor(
-  issues: ReportObjectValidationIssue[],
-  fieldKey: string,
-) {
-  return issues.filter((issue) => issue.field === fieldKey);
+function ColumnBuilderEditor({ value, onChange }: { value: string[]; onChange: (val: string[]) => void }) {
+  const allColumns = [
+    'No.', 'Meter Name', 'Device Name', 'Tag Name', 'Register Address',
+    'First Reading', 'Last Reading', 'Usage', 'CT Ratio', 'Multiplier',
+    'Rate', 'Amount', 'Service Charge', 'VAT', 'Total', 'Remark'
+  ];
+
+  const selected = value.filter(c => allColumns.includes(c));
+
+  const handleToggle = (col: string) => {
+    if (value.includes(col)) {
+      onChange(value.filter(c => c !== col));
+    } else {
+      onChange([...value, col]);
+    }
+  };
+
+  const handleMove = (index: number, direction: 'up' | 'down') => {
+    const next = [...value];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < next.length) {
+      const temp = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = temp;
+      onChange(next);
+    }
+  };
+
+  return (
+    <div style={{ border: '1px solid #cbd5e1', borderRadius: 4, padding: 8, background: '#f8fafc', gridColumn: '1 / -1', marginTop: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 12px', maxHeight: 150, overflowY: 'auto', padding: 4 }}>
+        {allColumns.map(col => {
+          const isChecked = value.includes(col);
+          return (
+            <label key={col} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', userSelect: 'none' }}>
+              <input type="checkbox" checked={isChecked} onChange={() => handleToggle(col)} />
+              <span>{col}</span>
+            </label>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        <button type="button" className="btn secondary extra-small-btn" style={{ padding: '2px 6px', fontSize: 10 }} onClick={() => onChange(allColumns)}>Select All</button>
+        <button type="button" className="btn secondary extra-small-btn" style={{ padding: '2px 6px', fontSize: 10 }} onClick={() => onChange([])}>Clear</button>
+        <button type="button" className="btn secondary extra-small-btn" style={{ padding: '2px 6px', fontSize: 10 }} onClick={() => onChange(['No.', 'Meter Name', 'First Reading', 'Last Reading', 'Usage', 'Total'])}>Reset</button>
+      </div>
+      {selected.length > 0 && (
+        <div style={{ marginTop: 8, borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4 }}>จัดเรียงลำดับคอลัมน์ (Order Columns):</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {selected.map((col, index) => (
+              <div key={col} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 4, padding: '2px 6px', fontSize: 12 }}>
+                <span>{col}</span>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  <button type="button" disabled={index === 0} onClick={() => handleMove(index, 'up')} style={{ padding: '0 6px', fontSize: 10, cursor: 'pointer' }}>▲</button>
+                  <button type="button" disabled={index === selected.length - 1} onClick={() => handleMove(index, 'down')} style={{ padding: '0 6px', fontSize: 10, cursor: 'pointer' }}>▼</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function fieldValue(field: ReportToolSettingField, settings: Record<string, unknown>) {
-  const value = settings[field.key];
+function CalculationPreviewPane({
+  object,
+  settings,
+  tags,
+  devices,
+  periodContext
+}: {
+  object: ReportObjectDefinition;
+  settings: Record<string, unknown>;
+  tags: TagSummary[];
+  devices: DeviceSummary[];
+  periodContext?: any;
+}) {
+  const isNumeric = ['value', 'kpicard', 'formulavalue', 'energy_summary', 'cost_summary'].includes(object.type);
+  if (!isNumeric) return null;
 
-  if (field.type === 'boolean') {
-    return Boolean(value ?? field.defaultValue ?? false);
+  const cb = object.props?.calculationBinding ?? {};
+  const tagId = String(settings.tag || settings.tagId || cb.tagId || '');
+  const meterId = String(settings.meter || settings.meterId || cb.meterId || '');
+  const period = String(settings.period || cb.period || 'today');
+
+  const selectedTag = tags.find(t => t.id === tagId);
+  const selectedMeter = devices.find(d => d.id === meterId);
+
+  const tagSum = periodContext?.tagSummaries?.get(tagId);
+
+  const ctRatio = Number(settings.ctRatio ?? cb.ctRatio ?? 1);
+  const ptRatio = Number(settings.ptRatio ?? cb.ptRatio ?? 1);
+  const multiplier = Number(settings.multiplier ?? cb.multiplier ?? 1);
+  const scale = Number(settings.scale ?? cb.scale ?? 1);
+  const offset = Number(settings.offset ?? cb.offset ?? 0);
+
+  const first = tagSum?.firstValue ?? null;
+  const last = tagSum?.lastValue ?? null;
+
+  let rawValue: number | null = null;
+  let finalValue: number | null = null;
+  let calcExplain = '';
+
+  const calcType = settings.calculationType ?? cb.calculationType ?? 'cumulative_delta';
+  
+  if (calcType === 'cumulative_delta') {
+    if (first != null && last != null) {
+      const diff = last - first;
+      rawValue = diff;
+      finalValue = diff * ctRatio * ptRatio * multiplier * scale + offset;
+      calcExplain = `(${last.toFixed(2)} - ${first.toFixed(2)}) * CT:${ctRatio} * PT:${ptRatio} * Multiplier:${multiplier} * Scale:${scale} + Offset:${offset}`;
+    } else {
+      calcExplain = 'History values not found in this range.';
+    }
+  } else {
+    const metricVal = tagSum ? tagSum[`${calcType}Value`] ?? tagSum.lastValue : null;
+    if (metricVal != null) {
+      rawValue = metricVal;
+      finalValue = metricVal * ctRatio * ptRatio * multiplier * scale + offset;
+      calcExplain = `${calcType} (${metricVal.toFixed(2)}) * CT:${ctRatio} * PT:${ptRatio} * Multiplier:${multiplier} * Scale:${scale} + Offset:${offset}`;
+    } else {
+      calcExplain = 'Values not resolved.';
+    }
   }
 
-  if (field.type === 'multiTagPicker') {
-    return normalizeStringArray(value ?? field.defaultValue ?? []);
+  if (object.type === 'formulavalue' && settings.formula) {
+    calcExplain = `Formula: ${settings.formula}`;
   }
 
-  if (field.type === 'columnBuilder') {
-    return normalizeStringArray(value ?? field.defaultValue ?? []).join(', ');
-  }
-
-  if (value !== undefined && value !== null) return value;
-  return field.defaultValue ?? '';
+  return (
+    <section className="ins-sec" style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+      <div className="ins-sec-head" style={{ marginBottom: 8 }}>
+        <h4 style={{ color: '#0369a1', display: 'flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 13 }}>
+          <Icon icon="solar:calculator-bold-duotone" width="16" height="16" />
+          การคำนวณจำลอง (Calculation Preview)
+        </h4>
+      </div>
+      <div style={{ display: 'grid', gap: 6, fontSize: 12, color: '#0c4a6e' }}>
+        <div><strong>มิเตอร์ (Meter):</strong> {selectedMeter?.name || meterId || 'ยังไม่ได้เลือก'}</div>
+        <div><strong>รีจิสเตอร์ (Register):</strong> {selectedTag?.name || tagId || 'ยังไม่ได้เลือก'} {selectedTag?.unit ? `(${selectedTag.unit})` : ''}</div>
+        <div><strong>Role:</strong> {String(settings.energyRole || cb.energyRole || 'ไม่มี')}</div>
+        <div><strong>ช่วงเวลา (Period):</strong> {period}</div>
+        <div style={{ borderTop: '1px dashed #bae6fd', marginTop: 4, paddingTop: 4 }}>
+          <div>ค่าแรก (First Value): {first != null ? first.toFixed(2) : '—'}</div>
+          <div>ค่าหลัง (Last Value): {last != null ? last.toFixed(2) : '—'}</div>
+          <div>ส่วนต่างดิบ (Raw Usage): {rawValue != null ? rawValue.toFixed(2) : '—'}</div>
+        </div>
+        <div style={{ background: '#e0f2fe', borderRadius: 4, padding: 6, marginTop: 4 }}>
+          <div><strong>วิธีคำนวณ:</strong> <code style={{ fontSize: 10, wordBreak: 'break-all' }}>{calcExplain}</code></div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#0369a1', marginTop: 4 }}>
+            ผลลัพธ์: {finalValue != null ? finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'} {String(settings.unit || selectedTag?.unit || '')}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 type ReportToolSettingsInspectorProps = {
@@ -174,6 +337,7 @@ type ReportToolSettingsInspectorProps = {
   tags: TagSummary[];
   devices: DeviceSummary[];
   onPatch: (patch: Partial<ReportObjectDefinition>) => void;
+  periodContext?: any;
 };
 
 export function ReportToolSettingsInspector({
@@ -181,6 +345,7 @@ export function ReportToolSettingsInspector({
   tags,
   devices,
   onPatch,
+  periodContext,
 }: ReportToolSettingsInspectorProps) {
   const schema = getReportToolSettingsSchema(object.type);
   const validation = React.useMemo(() => validateReportObjectSettings(object), [object]);
@@ -190,6 +355,7 @@ export function ReportToolSettingsInspector({
   );
   const presets = React.useMemo(() => getPresetsForTool(object.type), [object.type]);
   const [selectedPreset, setSelectedPreset] = React.useState('');
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
 
   React.useEffect(() => {
     setSelectedPreset('');
@@ -200,6 +366,7 @@ export function ReportToolSettingsInspector({
   const statusMeta = STATUS_META[validation.completeness];
   const issues = [...validation.errors, ...validation.warnings];
   const selectedPresetMeta = presets.find((preset) => preset.label === selectedPreset);
+  const support = getExportSupport(object.type);
 
   const handleFieldChange = (field: ReportToolSettingField, nextValue: unknown) => {
     onPatch(mapSettingsToObject(object, { [field.key]: nextValue }));
@@ -367,12 +534,9 @@ export function ReportToolSettingsInspector({
       );
     } else if (field.type === 'columnBuilder') {
       control = (
-        <textarea
-          rows={3}
-          value={String(value)}
-          placeholder="col1, col2, col3"
-          style={inputStyle}
-          onChange={(e) => handleFieldChange(field, normalizeStringArray(e.target.value))}
+        <ColumnBuilderEditor
+          value={normalizeStringArray(value)}
+          onChange={(next) => handleFieldChange(field, next)}
         />
       );
     } else {
@@ -417,6 +581,9 @@ export function ReportToolSettingsInspector({
         {field.description ? (
           <div style={{ gridColumn: '1 / -1', fontSize: 12, color: '#64748b' }}>{field.description}</div>
         ) : null}
+        {field.key === 'verticalAlign' && (
+          <div style={{ gridColumn: '1 / -1', fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>* ค่านี้มีผลเฉพาะในหน้า Editor ยังไม่มีผลกับ PDF Export</div>
+        )}
         {fieldIssues.map((issue, index) => (
           <div
             key={`${field.key}-issue-${index}`}
@@ -435,9 +602,17 @@ export function ReportToolSettingsInspector({
 
   return (
     <>
+      <CalculationPreviewPane
+        object={object}
+        settings={settings}
+        tags={tags}
+        devices={devices}
+        periodContext={periodContext}
+      />
+
       <section className="ins-sec">
         <div className="ins-sec-head">
-          <h4>Tool status</h4>
+          <h4>สถานะของเครื่องมือ (Tool Status)</h4>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
           <span
@@ -456,6 +631,25 @@ export function ReportToolSettingsInspector({
             {statusMeta.label}
           </span>
           <span style={{ fontSize: 12, color: '#64748b' }}>{schema.toolType}</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+          <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase', background: support.pdf === 'supported' ? '#ecfdf5' : support.pdf === 'web_only' ? '#fff7ed' : '#fef2f2', color: support.pdf === 'supported' ? '#047857' : support.pdf === 'web_only' ? '#c2410c' : '#991b1b', border: `1px solid ${support.pdf === 'supported' ? '#a7f3d0' : support.pdf === 'web_only' ? '#fdbb74' : '#fca5a5'}` }}>
+            PDF: {support.pdf === 'supported' ? 'Supported' : support.pdf === 'web_only' ? 'Web Only' : 'Unsupported'}
+          </span>
+          <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase', background: support.excel === 'supported' ? '#ecfdf5' : '#fef2f2', color: support.excel === 'supported' ? '#047857' : '#991b1b', border: `1px solid ${support.excel === 'supported' ? '#a7f3d0' : '#fca5a5'}` }}>
+            Excel: {support.excel === 'supported' ? 'Supported' : 'Unsupported'}
+          </span>
+        </div>
+        {support.pdf === 'web_only' && (
+          <div style={{ fontSize: 11, color: '#c2410c', marginTop: 4, fontWeight: 600 }}>⚠️ Web only / ไม่รองรับ PDF Export</div>
+        )}
+
+        <div style={{ marginTop: 12, borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+            <input type="checkbox" checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} />
+            แสดงตั้งค่าขั้นสูง (Show Advanced)
+          </label>
         </div>
 
         {presets.length > 0 ? (
@@ -526,6 +720,9 @@ export function ReportToolSettingsInspector({
       ) : null}
 
       {SECTION_ORDER.map((sectionKey) => {
+        const isBasic = ['general', 'binding', 'calculation', 'export'].includes(sectionKey);
+        if (!isBasic && !showAdvanced) return null;
+
         const fields = schema[sectionKey];
         if (!fields?.length) return null;
 

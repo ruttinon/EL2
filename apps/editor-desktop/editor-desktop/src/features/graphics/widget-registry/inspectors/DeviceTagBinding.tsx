@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { DeviceSummary, GraphicObjectDefinition, TagSummary } from '@energylink/shared-types';
 import { tagsForDevice } from '@energylink/widget-registry';
+import { BindingWizard } from './BindingWizard';
 
 export type DeviceTagBindingProps = {
   selected: GraphicObjectDefinition;
@@ -44,11 +46,37 @@ export function DeviceTagBinding({
     });
   };
 
+  const [wizardOpen, setWizardOpen] = useState(false);
+
   if (devices.length === 0) return null;
 
   return (
     <>
       <p className="ins-hint">{hint}</p>
+      
+      <button
+        type="button"
+        onClick={() => setWizardOpen(true)}
+        style={{
+          width: '100%',
+          padding: '6px 10px',
+          background: '#eff6ff',
+          color: '#2563eb',
+          border: '1px dashed #2563eb',
+          borderRadius: 6,
+          fontSize: 11,
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          marginBottom: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4
+        }}
+      >
+        🪄 เปิด Binding Wizard (ตัวช่วยผูก)
+      </button>
+
       <label className="ins-row">
         <span>Device</span>
         <select value={deviceId} onChange={(e) => bindDevice(e.target.value || undefined)}>
@@ -70,6 +98,39 @@ export function DeviceTagBinding({
           ))}
         </select>
       </label>
+
+      <BindingWizard
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        devices={devices}
+        tags={tags}
+        initialBinding={{
+          deviceId: selected.deviceId,
+          tagId: selected.tagId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          role: (selected.binding as any)?.role,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          energyRole: (selected.binding as any)?.energyRole,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          scale: (selected.binding as any)?.scale,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          offset: (selected.binding as any)?.offset,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ctRatio: (selected.binding as any)?.ctRatio,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ptRatio: (selected.binding as any)?.ptRatio,
+        }}
+        onApply={(binding) => {
+          onUpdate(selected.id, {
+            deviceId: binding.deviceId,
+            tagId: binding.tagId,
+            binding: {
+              ...selected.binding,
+              ...binding,
+            }
+          });
+        }}
+      />
     </>
   );
 }

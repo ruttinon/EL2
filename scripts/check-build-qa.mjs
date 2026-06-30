@@ -90,7 +90,7 @@ if (rootPkg) {
 const workspaces = [
   {
     name: '@energylink/editor-desktop',
-    dir: 'apps/editor-desktop',
+    dir: 'apps/editor-desktop/editor-desktop',
     expectedScripts: ['dev', 'build'],
     expectedFiles: ['src/App.tsx', 'src/main.tsx', 'tsconfig.json', 'vite.config.ts']
   },
@@ -171,7 +171,7 @@ for (const pattern of blockedSourcePatterns) {
 }
 
 const appFiles = [
-  'apps/editor-desktop/src/App.tsx',
+  'apps/editor-desktop/editor-desktop/src/App.tsx',
   'apps/monitor-desktop/src/App.tsx',
   'apps/web-viewer/src/App.tsx'
 ];
@@ -186,7 +186,7 @@ for (const file of appFiles) {
   else pass(`LoginGate not referenced: ${file}`);
 }
 
-const editorCommandBus = 'apps/editor-desktop/src/commandBus.ts';
+const editorCommandBus = 'apps/editor-desktop/editor-desktop/src/commandBus.ts';
 if (existsFile(editorCommandBus)) {
   pass('commandBus exists', editorCommandBus);
 } else {
@@ -194,7 +194,7 @@ if (existsFile(editorCommandBus)) {
 }
 
 const editorSourceText = sourceFiles
-  .filter(file => file.startsWith('apps/editor-desktop/src/'))
+  .filter(file => file.startsWith('apps/editor-desktop/editor-desktop/src/'))
   .map(file => readText(file).toLowerCase())
   .join('\n');
 

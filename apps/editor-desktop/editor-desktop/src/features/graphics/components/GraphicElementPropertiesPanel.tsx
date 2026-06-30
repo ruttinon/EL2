@@ -781,7 +781,7 @@ export function GraphicElementPropertiesPanel({
                   {activeTab === 'data' && (
                     <>
                       {/* Device → Tag Binding */}
-                      {['energysummary', 'demandsummary', 'powerquality', 'toutable'].includes(selectedObject.type) ? (
+                      {['energysummary', 'demandsummary', 'powerquality', 'toutable', 'costsummary', 'meterbilling'].includes(selectedObject.type) ? (
                         <div className="prop-card-group">
                           <div className="prop-card-group-title">
                             <Icon icon="solar:tag-bold-duotone" width="14" height="14" style={{ marginRight: 6 }} /> Report Data Binding
@@ -926,9 +926,155 @@ export function GraphicElementPropertiesPanel({
 
                             if (selectedObject.type === 'toutable') {
                               return (
-                                <div className="prop-hint" style={{ marginTop: 6, color: '#475569' }}>
-                                  Time of Use Table displays Peak, Off-Peak, and Holiday rates from the billing engine. No direct SCADA tag bindings required.
-                                </div>
+                                <>
+                                  <label>Peak Energy Tag (kWh)
+                                    <select
+                                      value={String(selectedObject.style?.tagPeak ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagPeak: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagPeak ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label>Peak Rate (Manual fallback)
+                                    <input
+                                      type="number"
+                                      step="0.0001"
+                                      value={selectedObject.style?.peakRate !== undefined ? Number(selectedObject.style.peakRate) : 4.1839}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, peakRate: e.target.value ? Number(e.target.value) : undefined } })}
+                                    />
+                                  </label>
+
+                                  <label>Off-Peak Energy Tag (kWh)
+                                    <select
+                                      value={String(selectedObject.style?.tagOffPeak ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagOffPeak: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagOffPeak ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label>Off-Peak Rate (Manual fallback)
+                                    <input
+                                      type="number"
+                                      step="0.0001"
+                                      value={selectedObject.style?.offPeakRate !== undefined ? Number(selectedObject.style.offPeakRate) : 2.6037}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, offPeakRate: e.target.value ? Number(e.target.value) : undefined } })}
+                                    />
+                                  </label>
+
+                                  <label>Holiday Energy Tag (kWh)
+                                    <select
+                                      value={String(selectedObject.style?.tagHoliday ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagHoliday: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagHoliday ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label>Holiday Rate (Manual fallback)
+                                    <input
+                                      type="number"
+                                      step="0.0001"
+                                      value={selectedObject.style?.holidayRate !== undefined ? Number(selectedObject.style.holidayRate) : 2.6037}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, holidayRate: e.target.value ? Number(e.target.value) : undefined } })}
+                                    />
+                                  </label>
+                                </>
+                              );
+                            }
+
+                            if (selectedObject.type === 'costsummary') {
+                              return (
+                                <>
+                                  <label>Total Energy Tag (kWh)
+                                    <select
+                                      value={String(selectedObject.style?.tagKwh ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagKwh: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagKwh ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>Total Cost Tag (฿)
+                                    <select
+                                      value={String(selectedObject.style?.tagCost ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagCost: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagCost ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>Peak Demand Tag (kW)
+                                    <select
+                                      value={String(selectedObject.style?.tagPeakKw ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagPeakKw: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagPeakKw ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>Carbon Tag (tCO2)
+                                    <select
+                                      value={String(selectedObject.style?.tagCarbon ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagCarbon: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagCarbon ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+
+                                  <label>Avg Rate Tag (฿/kWh)
+                                    <select
+                                      value={String(selectedObject.style?.tagAvgRate ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, tagAvgRate: e.target.value || undefined } })}
+                                    >
+                                      <option value="">— Select tag —</option>
+                                      {getOptions(String(selectedObject.style?.tagAvgRate ?? '')).map((tag) => (
+                                        <option key={tag.id} value={tag.id}>{tag.name}{tag.unit ? ` (${tag.unit})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </>
+                              );
+                            }
+
+                            if (selectedObject.type === 'meterbilling') {
+                              return (
+                                <>
+                                  <label>Billing Data (JSON string array of rows)
+                                    <textarea
+                                      style={{ width: '100%', minHeight: 120, fontFamily: 'monospace', fontSize: 11, marginTop: 6 }}
+                                      value={String(selectedObject.style?.billingData ?? '')}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, billingData: e.target.value } })}
+                                      placeholder={`[\n  {\n    "index": 1,\n    "deviceName": "Main Meter",\n    "tagName": "Import Active Energy",\n    "meterNo": "123456",\n    "firstValue": 1000,\n    "lastValue": 1200,\n    "usageValue": 200,\n    "ratePerUnit": 4.5,\n    "amount": 900\n  }\n]`}
+                                    />
+                                  </label>
+                                  <label>Decimal Places
+                                    <input
+                                      type="number"
+                                      value={selectedObject.style?.decimalPlaces !== undefined ? Number(selectedObject.style.decimalPlaces) : 2}
+                                      onChange={(e) => onUpdate({ style: { ...selectedObject.style, decimalPlaces: e.target.value ? Number(e.target.value) : 2 } })}
+                                    />
+                                  </label>
+                                </>
                               );
                             }
 

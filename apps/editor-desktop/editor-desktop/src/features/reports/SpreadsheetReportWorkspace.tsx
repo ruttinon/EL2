@@ -821,11 +821,11 @@ export function SpreadsheetReportWorkspace({
         <div className="report-designer-toolbar-group">
           <button type="button" className="btn primary small-btn" disabled={generateBusy} onClick={() => void onExport('pdf')}>
             <Icon icon="solar:file-text-bold-duotone" width="14" height="14" />
-            PDF
+            Export PDF
           </button>
           <button type="button" className="btn secondary small-btn" disabled={generateBusy} onClick={() => void onExport('excel')}>
             <Icon icon="solar:document-bold-duotone" width="14" height="14" />
-            Excel
+            Export Spreadsheet Excel
           </button>
         </div>
         <div className="report-designer-toolbar-meta">
@@ -1149,11 +1149,17 @@ export function SpreadsheetReportWorkspace({
                 <label className="ins-row">
                   <span>ประเภท</span>
                   <select value={report.reportType} onChange={(event) => void onUpdateReportField('reportType', event.target.value)}>
-                    <option value="daily_energy">รายวัน</option>
-                    <option value="monthly_energy">รายเดือน</option>
-                    <option value="device_energy">ตามอุปกรณ์</option>
-                    <option value="cost">ค่าใช้จ่าย</option>
-                    <option value="alarm">แจ้งเตือน</option>
+                    <option value="daily_energy">รายวัน (Daily Energy)</option>
+                    <option value="monthly_energy">รายเดือน (Monthly Energy)</option>
+                    <option value="device_energy">ตามอุปกรณ์ (Device Energy)</option>
+                    <option value="cost">ค่าใช้จ่าย (Energy Cost)</option>
+                    <option value="alarm">แจ้งเตือน (Alarm)</option>
+                    <option value="meter_billing">บิลค่าไฟ (Meter Billing)</option>
+                    <option value="tou_cost">ค่าไฟ TOU (TOU Cost)</option>
+                    <option value="demand">ความต้องการไฟฟ้าสูงสุด (Peak Demand)</option>
+                    <option value="device_communication">การเชื่อมต่ออุปกรณ์ (Device Comm)</option>
+                    <option value="carbon">คาร์บอนฟุตพริ้นท์ (Carbon Footprint)</option>
+                    <option value="custom">กำหนดเอง (Custom)</option>
                   </select>
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

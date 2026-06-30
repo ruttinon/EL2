@@ -3,13 +3,13 @@ import path from 'node:path';
 
 const root = process.cwd();
 
-const editorAppPath = path.join(root, 'apps/editor-desktop/src/App.tsx');
+const editorAppPath = path.join(root, 'apps/editor-desktop/editor-desktop/src/App.tsx');
 const workspacePaths = {
-  file: path.join(root, 'apps/editor-desktop/src/features/file/FileWorkspace.tsx'),
-  devices: path.join(root, 'apps/editor-desktop/src/features/devices/DevicesWorkspace.tsx'),
-  graphics: path.join(root, 'apps/editor-desktop/src/features/graphics/GraphicsWorkspace.tsx'),
-  reports: path.join(root, 'apps/editor-desktop/src/features/reports/ReportsWorkspace.tsx'),
-  setup: path.join(root, 'apps/editor-desktop/src/features/setup/SetupWorkspace.tsx')
+  file: path.join(root, 'apps/editor-desktop/editor-desktop/src/features/file/FileWorkspace.tsx'),
+  devices: path.join(root, 'apps/editor-desktop/editor-desktop/src/features/devices/DevicesWorkspace.tsx'),
+  graphics: path.join(root, 'apps/editor-desktop/editor-desktop/src/features/graphics/GraphicsWorkspace.tsx'),
+  reports: path.join(root, 'apps/editor-desktop/editor-desktop/src/features/reports/ReportsWorkspace.tsx'),
+  setup: path.join(root, 'apps/editor-desktop/editor-desktop/src/features/setup/SetupWorkspace.tsx')
 };
 
 function read(file) {

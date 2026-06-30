@@ -8,9 +8,9 @@ const requiredFiles = [
   'turbo.json',
   'tsconfig.base.json',
   'prisma/schema.prisma',
-  'apps/editor-desktop/package.json',
-  'apps/editor-desktop/src/App.tsx',
-  'apps/editor-desktop/electron/main.ts',
+  'apps/editor-desktop/editor-desktop/package.json',
+  'apps/editor-desktop/editor-desktop/src/App.tsx',
+  'apps/editor-desktop/editor-desktop/electron/main.ts',
   'apps/monitor-desktop/package.json',
   'apps/monitor-desktop/src/App.tsx',
   'apps/monitor-desktop/electron/main.ts',
@@ -41,7 +41,7 @@ const requiredFiles = [
 ];
 
 const requiredDirs = [
-  'apps/editor-desktop',
+  'apps/editor-desktop/editor-desktop',
   'apps/monitor-desktop',
   'apps/engine-manager-desktop',
   'apps/engine',
@@ -86,7 +86,7 @@ for (const f of requiredFiles) {
     : fail(`file missing: ${f}`);
 }
 
-for (const f of ['package.json', 'apps/editor-desktop/package.json', 'apps/monitor-desktop/package.json', 'apps/engine-manager-desktop/package.json', 'apps/engine/package.json', 'apps/web-viewer/package.json']) {
+for (const f of ['package.json', 'apps/editor-desktop/editor-desktop/package.json', 'apps/monitor-desktop/package.json', 'apps/engine-manager-desktop/package.json', 'apps/engine/package.json', 'apps/web-viewer/package.json']) {
   try {
     JSON.parse(read(f));
     pass(`valid JSON: ${f}`);

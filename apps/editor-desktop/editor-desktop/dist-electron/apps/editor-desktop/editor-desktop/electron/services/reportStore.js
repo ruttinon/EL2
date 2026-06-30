@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { getDatabaseUrl } from '@energylink/shared-data';
 let prisma = null;
+function getClient() {
+    process.env.DATABASE_URL = getDatabaseUrl();
+    prisma ??= new PrismaClient();
+    return prisma;
+}
 const defaultPage = () => ({
     id: 'page_1',
     name: 'Page 1',
@@ -9,19 +14,20 @@ const defaultPage = () => ({
     backgroundColor: '#ffffff',
     objects: []
 });
-const emptyTemplate = () => ({ version: 1, pages: [defaultPage()] });
-function getClient() {
-    process.env.DATABASE_URL = getDatabaseUrl();
-    prisma ??= new PrismaClient();
-    return prisma;
+const defaultPages = () => [defaultPage()];
+const emptyTemplate = () => ({ version: 1, pages: defaultPages() });
+function isSpreadsheetTemplate(template) {
+    return (template != null &&
+        typeof template === 'object' &&
+        (template.mode === 'spreadsheet' || Number(template.version ?? 1) >= 2));
 }
 function normalizeObject(obj, index) {
     return {
         ...obj,
         id: obj.id || `report_object_${index + 1}`,
         name: obj.name || `${obj.type || 'object'}_${index + 1}`,
-        x: Math.round(Number(obj.x) || 40),
-        y: Math.round(Number(obj.y) || 40),
+        x: Number.isFinite(obj.x) ? Math.round(Number(obj.x)) : 40,
+        y: Number.isFinite(obj.y) ? Math.round(Number(obj.y)) : 40,
         width: Math.max(1, Math.round(Number(obj.width) || 120)),
         height: Math.max(1, Math.round(Number(obj.height) || 40)),
         visible: obj.visible ?? true,
@@ -34,11 +40,41 @@ function parseTemplate(templateJson) {
         return emptyTemplate();
     try {
         const parsed = JSON.parse(templateJson);
-        if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.pages))
+        if (!parsed)
             return emptyTemplate();
+        if (isSpreadsheetTemplate(parsed)) {
+            const hasSheets = Array.isArray(parsed.spreadsheet?.snapshot?.sheets);
+            const spreadsheetData = {
+                snapshot: {
+                    sheets: hasSheets ? parsed.spreadsheet.snapshot.sheets : [{
+                            id: 'sheet_1',
+                            name: 'Sheet1',
+                            rowCount: 20,
+                            colCount: 10,
+                            usedRange: 'A1:J20',
+                            columns: Array.from({ length: 10 }, (_, index) => ({ index: index + 1, width: 14 })),
+                            merges: [],
+                            cells: [],
+                        }]
+                },
+                bindings: Array.isArray(parsed.spreadsheet?.bindings) ? parsed.spreadsheet.bindings : [],
+                export: parsed.spreadsheet?.export || {
+                    pdf: { sheetMode: 'all', fitToPage: true, showGridLines: false },
+                    excel: { preserveFormulas: true }
+                }
+            };
+            return {
+                ...parsed,
+                version: Math.max(2, Number(parsed.version ?? 2)),
+                mode: 'spreadsheet',
+                pages: Array.isArray(parsed.pages) && parsed.pages.length ? parsed.pages : defaultPages(),
+                spreadsheet: spreadsheetData
+            };
+        }
+        const pages = (Array.isArray(parsed.pages) ? parsed.pages : defaultPages());
         return {
             version: 1,
-            pages: parsed.pages.map((page, pageIndex) => ({
+            pages: pages.map((page, pageIndex) => ({
                 id: page.id || `page_${pageIndex + 1}`,
                 name: page.name || `Page ${pageIndex + 1}`,
                 width: Math.max(320, Math.round(Number(page.width) || 1123)),
@@ -54,13 +90,24 @@ function parseTemplate(templateJson) {
 }
 function serializeTemplate(template) {
     const cleanTemplate = template || emptyTemplate();
-    if (cleanTemplate.version !== 1)
-        throw new Error('Report template version must be 1');
-    if (!Array.isArray(cleanTemplate.pages) || cleanTemplate.pages.length === 0)
-        throw new Error('Report template must have at least one page');
+    if (isSpreadsheetTemplate(cleanTemplate)) {
+        if (!cleanTemplate.spreadsheet?.snapshot?.sheets) {
+            throw new Error('Spreadsheet report template must contain spreadsheet.snapshot.sheets');
+        }
+        return JSON.stringify({
+            ...cleanTemplate,
+            version: Math.max(2, Number(cleanTemplate.version ?? 2)),
+            mode: 'spreadsheet',
+            pages: Array.isArray(cleanTemplate.pages) && cleanTemplate.pages.length ? cleanTemplate.pages : defaultPages(),
+        });
+    }
+    if (!Array.isArray(cleanTemplate.pages) || cleanTemplate.pages.length === 0) {
+        return JSON.stringify({ ...emptyTemplate() });
+    }
+    const pages = cleanTemplate.pages;
     return JSON.stringify({
         version: 1,
-        pages: cleanTemplate.pages.map((page, pageIndex) => ({
+        pages: pages.map((page, pageIndex) => ({
             id: page.id || `page_${pageIndex + 1}`,
             name: page.name || `Page ${pageIndex + 1}`,
             width: Math.max(320, Math.round(Number(page.width) || 1123)),
@@ -186,7 +233,7 @@ export async function getReportDatabaseStatus(projectId) {
     const defaultReport = reports.find((r) => r.isDefault);
     const objectCount = reports.reduce((sum, report) => {
         const template = parseTemplate(report.templateJson);
-        return sum + template.pages.reduce((pageSum, page) => pageSum + page.objects.length, 0);
+        return sum + (template.pages ?? []).reduce((pageSum, page) => pageSum + (page.objects?.length || 0), 0);
     }, 0);
     return { activeProjectId, reportCount: reports.length, objectCount, defaultReportId: defaultReport?.id || null };
 }

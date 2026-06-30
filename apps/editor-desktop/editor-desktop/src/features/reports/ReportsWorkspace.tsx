@@ -352,7 +352,21 @@ function starterTemplate(reportType: string, paperSize = 'A4', orientation = 'la
       y: 28,
       width: 520,
       height: 42,
-      text: reportType === 'alarm' ? 'Alarm Report' : reportType === 'cost' ? 'Energy Cost Report' : 'Energy Report',
+      text: reportType === 'alarm'
+        ? 'Alarm Report'
+        : reportType === 'device_communication'
+        ? 'Device Communication Report'
+        : reportType === 'carbon'
+        ? 'Carbon Footprint Report'
+        : reportType === 'tou_cost'
+        ? 'TOU Cost Report'
+        : reportType === 'demand'
+        ? 'Peak Demand Report'
+        : reportType === 'meter_billing'
+        ? 'Meter Billing Report'
+        : reportType === 'cost'
+        ? 'Energy Cost Report'
+        : 'Energy Report',
       style: { fontSize: 24, color: '#0f172a', background: 'transparent', borderColor: 'transparent', align: 'left', fontWeight: 800 },
     }),
     make('date' as ReportObjectType, 2, {
@@ -383,7 +397,7 @@ function starterTemplate(reportType: string, paperSize = 'A4', orientation = 'la
     }),
   ];
 
-  const isAlarm = reportType === 'alarm';
+  const isAlarm = reportType === 'alarm' || reportType === 'device_communication';
   const body: ReportObjectDefinition[] = isAlarm
     ? [
         make('alarmtable' as ReportObjectType, 4, {
@@ -1183,16 +1197,94 @@ export function ReportsWorkspace() {
 
   async function validateReport(showMessage = true): Promise<ReportValidationResult> {
     if (isSpreadsheetReport) {
-      const hasSheet = Boolean(selectedReport?.template?.spreadsheet?.snapshot?.sheets?.length);
-      const errors = hasSheet ? [] : ['Spreadsheet report has no worksheet snapshot.'];
+      const template = selectedReport?.template;
+      const sheets = template?.spreadsheet?.snapshot?.sheets;
+      const bindings = template?.spreadsheet?.bindings ?? [];
+      
+      const errors: string[] = [];
       const warnings: ReportValidationIssue[] = [];
+
+      // 1. Worksheet validation
+      if (!sheets || !Array.isArray(sheets) || sheets.length === 0) {
+        errors.push('Spreadsheet report must have at least 1 worksheet snapshot.');
+      } else {
+        // 2. Bindings validation
+        if (bindings.length === 0) {
+          warnings.push({
+            message: 'Spreadsheet has no bindings defined. Live data will not be resolved.',
+            severity: 'warning'
+          });
+        } else {
+          const bindingCells = new Set<string>();
+          
+          for (let i = 0; i < bindings.length; i++) {
+            const b = bindings[i];
+            const prefix = `Binding #${i + 1}:`;
+            
+            if (!b.sheetName?.trim()) {
+              errors.push(`${prefix} Missing sheetName.`);
+            }
+            
+            const cell = b.cell?.trim();
+            if (!cell) {
+              errors.push(`${prefix} Missing cell address.`);
+            } else if (!/^[A-Z]+[0-9]+$/.test(cell)) {
+              errors.push(`${prefix} Invalid cell address "${cell}". Must be format like A1, B12.`);
+            }
+            
+            const validKinds = ['report_meta', 'tag_metric', 'billing_metric', 'text_template'];
+            if (!b.kind) {
+              errors.push(`${prefix} Missing binding kind.`);
+            } else if (!validKinds.includes(b.kind)) {
+              errors.push(`${prefix} Invalid binding kind "${b.kind}". Must be one of: ${validKinds.join(', ')}.`);
+            } else {
+              if (b.kind === 'tag_metric') {
+                if (!b.tagId) {
+                  errors.push(`${prefix} Kind "tag_metric" must specify tagId.`);
+                } else {
+                  const tagExists = tags.some((t) => t.id === b.tagId);
+                  if (!tagExists) {
+                    errors.push(`${prefix} Tag ID "${b.tagId}" not found in current project tags.`);
+                  }
+                }
+              } else if (b.kind === 'billing_metric') {
+                if (!b.metric) {
+                  errors.push(`${prefix} Kind "billing_metric" must specify metric.`);
+                }
+              }
+            }
+            
+            if (b.sheetName && cell) {
+              const key = `${b.sheetName.trim()}!${cell.trim()}`;
+              if (bindingCells.has(key)) {
+                warnings.push({
+                  message: `Duplicate binding for cell ${key}. New binding may override previous value.`,
+                  severity: 'warning'
+                });
+              }
+              bindingCells.add(key);
+            }
+          }
+        }
+      }
+
       setValidationWarnings(warnings);
       if (errors.length > 0) {
         setError(errors.join('\n'));
         return { ok: false, errors, warnings };
       }
+      
       setError(undefined);
-      if (showMessage) setNotice('Spreadsheet report is ready. Refresh preview to validate bindings against live data.');
+      if (showMessage) {
+        if (warnings.length > 0) {
+          const message = `Validation OK with ${warnings.length} warning(s).\n\n${warnings.slice(0, 8).map(w => w.message).join('\n')}${warnings.length > 8 ? `\n…and ${warnings.length - 8} more` : ''}`;
+          setNotice(`Validation OK — ${warnings.length} warning(s)`);
+          await showAlert(message);
+        } else {
+          setNotice('Spreadsheet report is ready. Refresh preview to validate bindings against live data.');
+          await showAlert('Spreadsheet report validation successful! All sheets and bindings are valid.');
+        }
+      }
       return { ok: true, errors: [], warnings };
     }
 
@@ -1232,7 +1324,7 @@ export function ReportsWorkspace() {
 
   async function previewReport() {
     if (isSpreadsheetReport) {
-      setNotice('Use Refresh Preview in spreadsheet mode.');
+      setNotice('Spreadsheet Report ให้ใช้ปุ่ม Refresh Preview ของ spreadsheet mode');
       return;
     }
     flushPendingTemplateSave();
@@ -1242,10 +1334,32 @@ export function ReportsWorkspace() {
       if (errors.length) setError(errors.join('\n'));
       return;
     }
-    const win = window.open('', '_blank', 'width=1100,height=800');
-    if (!win) { setError('Cannot open preview window. Please allow popups for this app.'); return; }
-    win.document.write(makeHtmlReport(reportForActions!));
-    win.document.close();
+
+    setGenerateBusy(true);
+    setError(undefined);
+    // Attempt PDF runtime preview from Engine
+    const res = await reportsGenerateApi.generate(selectedReport.id, {
+      format: 'pdf',
+      tariffId: reportTariffId || undefined,
+      requestedBy: 'editor-desktop-preview',
+    });
+    setGenerateBusy(false);
+
+    if (res && !('message' in res) && res.data?.generated) {
+      const generated = res.data.generated;
+      const downloadUrl = `${cleanUrl}${generated.downloadUrl}`;
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+      setNotice('เปิด Runtime Preview สำเร็จ (สร้างจากข้อมูลจริงบน Engine)');
+    } else {
+      setError('กรุณาเปิด Engine ก่อนใช้งาน Runtime Preview / Export (ระบบจะแสดง Design Preview ทดแทน)');
+      const win = window.open('', '_blank', 'width=1100,height=800');
+      if (!win) {
+        setError('Cannot open preview window. Please allow popups for this app.');
+        return;
+      }
+      win.document.write(makeHtmlReport(reportForActions!));
+      win.document.close();
+    }
   }
 
   async function generateReportFromEngine(format: ExportFormat) {
@@ -1424,7 +1538,7 @@ export function ReportsWorkspace() {
       else if (item === 'bring front') layerSelected('front');
       else if (item === 'send back') layerSelected('back');
       else if (item === 'delete object') await deleteObject();
-      else if (isGridCommand(item)) {
+      else if (item === 'grid 20px' || isGridCommand(item)) {
         const parsedSize = parseGridSizeFromCommand(item);
         if (parsedSize != null) setGridSize(parsedSize);
         setGridEnabled((value) => {
@@ -1604,17 +1718,17 @@ export function ReportsWorkspace() {
                 </button>
                 <button type="button" className="btn secondary small-btn" onClick={() => void previewReport()}>
                   <Icon icon="solar:eye-bold-duotone" width="14" height="14" />
-                  ดู
+                  ดู (Design Preview)
                 </button>
               </div>
               <div className="report-designer-toolbar-group">
                 <button type="button" className="btn primary small-btn" disabled={generateBusy} onClick={() => void exportReport('pdf')}>
                   <Icon icon="solar:file-text-bold-duotone" width="14" height="14" />
-                  PDF
+                  Export PDF
                 </button>
                 <button type="button" className="btn secondary small-btn" disabled={generateBusy} onClick={() => void exportReport('excel')}>
                   <Icon icon="solar:document-bold-duotone" width="14" height="14" />
-                  Excel
+                  Export Excel Data
                 </button>
                 <button type="button" className="btn secondary small-btn" onClick={() => void printReport()}>
                   <Icon icon="solar:printer-bold-duotone" width="14" height="14" />
@@ -1948,7 +2062,7 @@ export function ReportsWorkspace() {
                       <h4>รายงาน</h4>
                     </div>
                     <label className="ins-row"><span>ชื่อ</span><input value={selectedReport.name} onChange={(e) => void updateReportField('name', e.target.value)} /></label>
-                    <label className="ins-row"><span>ประเภท</span><select value={selectedReport.reportType} onChange={(e) => void updateReportField('reportType', e.target.value)}><option value="daily_energy">รายวัน</option><option value="monthly_energy">รายเดือน</option><option value="device_energy">ตามอุปกรณ์</option><option value="cost">ค่าใช้จ่าย</option><option value="alarm">แจ้งเตือน</option></select></label>
+                    <label className="ins-row"><span>ประเภท</span><select value={selectedReport.reportType} onChange={(e) => void updateReportField('reportType', e.target.value)}><option value="daily_energy">รายวัน (Daily Energy)</option><option value="monthly_energy">รายเดือน (Monthly Energy)</option><option value="device_energy">ตามอุปกรณ์ (Device Energy)</option><option value="cost">ค่าใช้จ่าย (Energy Cost)</option><option value="alarm">แจ้งเตือน (Alarm)</option><option value="meter_billing">บิลค่าไฟ (Meter Billing)</option><option value="tou_cost">ค่าไฟ TOU (TOU Cost)</option><option value="demand">ความต้องการไฟฟ้าสูงสุด (Peak Demand)</option><option value="device_communication">การเชื่อมต่ออุปกรณ์ (Device Comm)</option><option value="carbon">คาร์บอนฟุตพริ้นท์ (Carbon Footprint)</option><option value="custom">กำหนดเอง (Custom)</option></select></label>
                   </div>
 
                   <div className="ins-sec">
@@ -2029,6 +2143,7 @@ export function ReportsWorkspace() {
                       tags={tags}
                       devices={devices}
                       onPatch={(patch) => patchObjectById(sel.id, patch)}
+                      periodContext={periodContext}
                     />
                     <ReportObjectSupplement
                       object={sel}

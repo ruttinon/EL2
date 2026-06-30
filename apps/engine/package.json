@@ -19,11 +19,13 @@
     "modbus-serial": "^8.0.17",
     "mqtt": "^5.15.1",
     "nodemailer": "^8.0.10",
-    "pdfkit": "^0.15.0"
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/pdfkit": "^0.13.5",
+    "@types/qrcode": "^1.5.5",
     "tsx": "^4.0.0",
     "typescript": "^5.9.3"
   },
