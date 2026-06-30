@@ -1,5 +1,5 @@
 import React from 'react';
-import { MonitorPlay, Zap, Palette, ChevronLeft, ChevronRight, Plug } from 'lucide-react';
+import { MonitorPlay, Zap, Palette, ChevronLeft, ChevronRight, Plug, Moon, Sun, Menu, X, Bell } from 'lucide-react';
 import { currentEngineUrl, engineApi, probeEngineUrl, setEngineUrl } from './api/engineApi';
 import {
   getOperatorRole,
@@ -280,9 +280,38 @@ export function MonitorShell() {
   );
   const [sidebarSearch, setSidebarSearch] = React.useState('');
   const [navPanelOpen, setNavPanelOpen] = React.useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const activeAlarms = state.alarmSummary?.active ?? 0;
   const [statusbarNow, setStatusbarNow] = React.useState(() => new Date());
   const [themeOpen, setThemeOpen] = React.useState(false);
+
+  // ── Dark mode ──────────────────────────────────────────────────────────
+  const [darkMode, setDarkMode] = React.useState<boolean>(() => {
+    try { return localStorage.getItem('energylink:dark-mode') === '1'; } catch { return false; }
+  });
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    try { localStorage.setItem('energylink:dark-mode', darkMode ? '1' : '0'); } catch { /* ignore */ }
+  }, [darkMode]);
+
+  // ── Toast system ───────────────────────────────────────────────────────
+  type Toast = { id: number; kind: 'error' | 'success' | 'info'; msg: string };
+  const [toasts, setToasts] = React.useState<Toast[]>([]);
+  const toastIdRef = React.useRef(0);
+  const showToast = React.useCallback((msg: string, kind: Toast['kind'] = 'error') => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, kind, msg }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  }, []);
+
+  // show toast on API error
+  const prevError = React.useRef<string | undefined>(undefined);
+  React.useEffect(() => {
+    if (state.error && state.error !== prevError.current) {
+      showToast(state.error, 'error');
+    }
+    prevError.current = state.error;
+  }, [state.error, showToast]);
 
   React.useEffect(() => {
     const timer = window.setInterval(() => setStatusbarNow(new Date()), 1000);
@@ -300,7 +329,7 @@ export function MonitorShell() {
   });
 
   return (
-    <div className={`monitor-app${kioskMode ? ' monitor-kiosk-shell' : ''}`}>
+    <div className={`monitor-app${kioskMode ? ' monitor-kiosk-shell' : ''}`} data-theme={darkMode ? 'dark' : 'light'}>
       <div className="app-gradient-bg" aria-hidden="true" />
       <div className="monitor-tech-grid" aria-hidden="true" />
       <div className="monitor-tech-scanline" aria-hidden="true" />
@@ -343,6 +372,24 @@ export function MonitorShell() {
           />
           <button
             type="button"
+            className="dark-mode-btn"
+            onClick={() => setDarkMode(d => !d)}
+            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle dark mode"
+          >
+            <UiIcon icon={darkMode ? Sun : Moon} size="sm" />
+          </button>
+          <button
+            type="button"
+            className="titlebar-icon-btn hamburger-btn"
+            onClick={() => setMobileNavOpen(o => !o)}
+            title="Toggle navigation"
+            aria-label="Toggle navigation panel"
+          >
+            <UiIcon icon={mobileNavOpen ? X : Menu} size="sm" />
+          </button>
+          <button
+            type="button"
             className="titlebar-icon-btn"
             onClick={() => setThemeOpen(true)}
             title="Theme"
@@ -380,14 +427,20 @@ export function MonitorShell() {
         onRefreshSeconds={seconds => setState(cur => ({ ...cur, refreshSeconds: seconds }))}
       />
 
+      {mobileNavOpen && <div className="mobile-overlay" onClick={() => setMobileNavOpen(false)} />}
       <div className={`body${navPanelOpen ? '' : ' nav-collapsed'}`}>
-        <aside className={`left-panel${navPanelOpen ? '' : ' collapsed'}`} aria-hidden={!navPanelOpen}>
+        <aside className={`left-panel${navPanelOpen ? '' : ' collapsed'}${mobileNavOpen ? ' force-open' : ''}`} aria-hidden={!navPanelOpen && !mobileNavOpen}>
           <div className="panel-title">
             <span>Navigation</span>
+            {activeAlarms > 0 && (
+              <span className="nav-alarm-badge" title={`${activeAlarms} active alarm(s)`}>
+                {activeAlarms > 99 ? '99+' : activeAlarms}
+              </span>
+            )}
             <button
               type="button"
               className="nav-panel-toggle"
-              onClick={() => setNavPanelOpen(false)}
+              onClick={() => { setNavPanelOpen(false); setMobileNavOpen(false); }}
               aria-label="Collapse navigation panel"
               title="Hide sidebar"
             >
@@ -443,11 +496,6 @@ export function MonitorShell() {
         )}
 
         <main className="main-view">
-          {state.error && (
-            <div className="alert error" style={{ marginBottom: 14 }}>
-              {state.error}
-            </div>
-          )}
 
           {state.activeView === 'dashboard' && (
             <DashboardView
@@ -539,6 +587,22 @@ export function MonitorShell() {
       </footer>
 
       <ThemeCustomizer open={themeOpen} onClose={() => setThemeOpen(false)} />
+
+      {/* ── Toast container ───────────────────────────────────────────── */}
+      <div className="monitor-toast-container" aria-live="polite">
+        {toasts.map(t => (
+          <div key={t.id} className={`monitor-toast monitor-toast-${t.kind}`}>
+            <span>{t.kind === 'error' ? '⚠' : t.kind === 'success' ? '✓' : 'ℹ'}</span>
+            <span style={{ flex: 1 }}>{t.msg}</span>
+            <button
+              type="button"
+              className="monitor-toast-close"
+              onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
+              aria-label="Dismiss"
+            >×</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
