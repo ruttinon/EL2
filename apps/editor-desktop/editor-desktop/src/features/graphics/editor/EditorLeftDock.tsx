@@ -20,6 +20,7 @@ export type EditorLeftDockProps = {
   disabled?: boolean;
   devices: DeviceSummary[];
   onAssetsChange?: () => void;
+  editorUiMode?: 'simple' | 'advanced' | 'building';
 };
 
 export function EditorLeftDock(props: EditorLeftDockProps) {
@@ -29,6 +30,7 @@ export function EditorLeftDock(props: EditorLeftDockProps) {
     disabled,
     devices,
     onAssetsChange,
+    editorUiMode = 'simple',
   } = props;
 
   const [tab, setTab] = useState<DockTab>('widgets');
@@ -72,7 +74,7 @@ export function EditorLeftDock(props: EditorLeftDockProps) {
 
       <div className="eld-panel" role="tabpanel">
         {tab === 'widgets' ? (
-          <WidgetLibrary activeTool={activeTool} onPickTool={onPickTool} />
+          <WidgetLibrary activeTool={activeTool} onPickTool={onPickTool} editorUiMode={editorUiMode} />
         ) : null}
         {tab === 'devices' ? (
           <DevicePalette

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { DeviceSummary, GraphicObjectDefinition, GraphicSummary, TagSummary } from '@energylink/shared-types';
 import type { WidgetDefinition } from '@energylink/widget-registry';
 import { getWidgetByObjectType, resolveInspectorGroups } from '@energylink/widget-registry';
@@ -51,6 +52,7 @@ export type InspectorComposerProps = {
   onUpdate: (id: string, patch: Partial<GraphicObjectDefinition>) => void;
   /** Schema inspector groups to hide (e.g. layout in report designer). */
   hiddenGroups?: string[];
+  editorUiMode?: 'simple' | 'advanced' | 'building';
 };
 
 function getPathValue(obj: GraphicObjectDefinition, path: string): unknown {
@@ -108,7 +110,9 @@ export function InspectorComposer({
   onStartPathEdit,
   onUpdate,
   hiddenGroups = [],
+  editorUiMode = 'simple',
 }: InspectorComposerProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const def: WidgetDefinition | undefined = getWidgetByObjectType(selected.type);
   if (!def) return null;
 
@@ -140,6 +144,25 @@ export function InspectorComposer({
 
   return (
     <div className="ins-composer">
+      {editorUiMode === 'simple' && (
+        <label style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 11,
+          fontWeight: 'bold',
+          color: '#475569',
+          padding: '6px 10px',
+          background: '#f1f5f9',
+          borderRadius: 6,
+          marginBottom: 10,
+          border: '1px solid #cbd5e1',
+          cursor: 'pointer'
+        }}>
+          <input type="checkbox" checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} />
+          <span>แสดงตั้งค่าขั้นสูง (Show Advanced Settings)</span>
+        </label>
+      )}
       {!hiddenGroups.includes('layout') ? (
         <header className="ins-composer-head">
           <h3>{def.display.label}</h3>
@@ -238,7 +261,7 @@ export function InspectorComposer({
         <Cable3dMiniInspector selected={selected} objects={objects} onUpdate={onUpdate} />
       ) : null}
 
-      {showThresholds || showValueRules || showAnimation ? (
+      {!(editorUiMode === 'simple' && !showAdvanced) && (showThresholds || showValueRules || showAnimation) ? (
         <details className="ins-composer-group" open={false}>
           <summary>Advanced Options</summary>
           <div className="ins-composer-fields">
@@ -258,13 +281,19 @@ export function InspectorComposer({
       ) : null}
 
       {schemaGroups.map((group) => {
+        const gid = group.id as string;
+        const isAdvancedGroup = gid === 'advanced' || gid === 'debug' || group.tier === 'advanced';
+        if (editorUiMode === 'simple' && !showAdvanced && isAdvancedGroup) {
+          return null;
+        }
+
         const visibleFields = group.fields.filter((f) => {
           if (f.path.startsWith('_meta.')) return false;
           if (f.path === 'name' && (dedicated === 'gauge' || dedicated === 'chart' || dedicated === 'value')) return false;
           return true;
         });
         if (visibleFields.length === 0) return null;
-        const collapsed = group.tier === 'advanced';
+        const collapsed = group.tier === 'advanced' || (editorUiMode === 'simple' && !showAdvanced);
         return (
           <details key={`${def.id}-${group.id}`} className="ins-composer-group" open={!collapsed}>
             <summary>{group.title}</summary>

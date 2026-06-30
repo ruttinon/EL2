@@ -35,6 +35,7 @@ export type InspectorPanelProps = {
   /** Shown at top of Design tab (e.g. report page background). */
   pinnedInspectorHeader?: React.ReactNode;
   className?: string;
+  editorUiMode?: 'simple' | 'advanced' | 'building';
 };
 
 function styleNum(obj: GraphicObjectDefinition, key: string, fallback: number): number {
@@ -47,7 +48,7 @@ function styleStr(obj: GraphicObjectDefinition, key: string, fallback: string): 
 }
 
 export function InspectorPanel(props: InspectorPanelProps) {
-  const { objects, selected, tags, devices, graphics, currentGraphicId, canvasBg, isHtmlPage = false, htmlAnchors, renderCanvasProps, renderCustomInspector, stackCustomInspector = false, preferCustomInspector = false, pinnedInspectorHeader, onCanvasBg, onSelect, onUpdate, onRemove, onReorder, onWrapInGroup, onUngroupGroup, onStartPathEdit } = props;
+  const { objects, selected, tags, devices, graphics, currentGraphicId, canvasBg, isHtmlPage = false, htmlAnchors, renderCanvasProps, renderCustomInspector, stackCustomInspector = false, preferCustomInspector = false, pinnedInspectorHeader, onCanvasBg, onSelect, onUpdate, onRemove, onReorder, onWrapInGroup, onUngroupGroup, onStartPathEdit, editorUiMode = 'simple' } = props;
   const [tab, setTab] = useState<Tab>('design');
 
   const sortedLayers = [...objects].sort((a, b) => (b.layer ?? 0) - (a.layer ?? 0));
@@ -142,6 +143,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
                     onStartPathEdit={onStartPathEdit}
                     onUpdate={onUpdate}
                     hiddenGroups={stackCustomInspector ? ['layout', 'transform'] : undefined}
+                    editorUiMode={editorUiMode}
                   />
                   {stackCustomInspector && renderCustomInspector ? renderCustomInspector(selected) : null}
                 </>

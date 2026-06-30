@@ -16,9 +16,10 @@ export type ToolRailProps = {
 export type WidgetLibraryProps = {
   activeTool: ActiveTool;
   onPickTool: (tool: ActiveTool) => void;
+  editorUiMode?: 'simple' | 'advanced' | 'building';
 };
 
-export function WidgetLibrary({ activeTool, onPickTool }: WidgetLibraryProps) {
+export function WidgetLibrary({ activeTool, onPickTool, editorUiMode = 'simple' }: WidgetLibraryProps) {
   const [symbols, setSymbols] = useState(() => allSymbols());
   const refreshSymbols = () => setSymbols(allSymbols());
 
@@ -52,7 +53,7 @@ export function WidgetLibrary({ activeTool, onPickTool }: WidgetLibraryProps) {
 
   return (
     <div className="tr-flyout-body tr-flyout-embedded">
-      <WidgetPalette activeTool={activeTool} onPickTool={pick} legacyCategories={legacyCategories} />
+      <WidgetPalette activeTool={activeTool} onPickTool={pick} legacyCategories={legacyCategories} editorUiMode={editorUiMode} />
       <div className="tr-group">
         <div className="tr-group-title">Symbols</div>
         <section className="tr-cat">

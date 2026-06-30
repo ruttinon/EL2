@@ -673,6 +673,40 @@ export function EditorCanvas(props: EditorCanvasProps) {
             className={htmlLayout ? 'ec-html-overlay' : undefined}
           />
 
+          {/* ── Task 11: Live Status Indicator rings ─────────────────── */}
+          {runtimeActive && displayObjects.map((obj) => {
+            const tagId = (obj as any).tagId ?? (obj as any).binding?.tagId;
+            if (!tagId) return null;
+            const val = currentValues?.find((v) => v.id === tagId);
+            const alarm = alarms?.find((a) => a.tagId === tagId);
+            let color = '#475569';  // no data / grey
+            let statusLabel = '?';
+            if (alarm && (alarm.status === 'active' || alarm.status === 'unack')) { color = '#ef4444'; statusLabel = '⚠'; }
+            else if (!val) { color = '#475569'; statusLabel = '—'; }
+            else if (val.quality === 'bad') { color = '#f97316'; statusLabel = '✕'; }
+            else if (val.quality === 'offline') { color = '#94a3b8'; statusLabel = '⊘'; }
+            else if (val.quality === 'simulated') { color = '#a78bfa'; statusLabel = 'S'; }
+            else if (val.quality === 'manual') { color = '#fbbf24'; statusLabel = 'M'; }
+            else { color = '#22c55e'; statusLabel = '●'; }
+            return (
+              <div key={`status-${obj.id}`} style={{
+                position: 'absolute',
+                left: obj.x + obj.width - 9,
+                top: obj.y + 1,
+                width: 8, height: 8,
+                borderRadius: '50%',
+                background: color,
+                border: '1.5px solid rgba(0,0,0,0.5)',
+                zIndex: 35,
+                pointerEvents: 'none',
+                boxShadow: `0 0 4px ${color}`,
+              }}
+                title={`Tag: ${tagId} | Status: ${statusLabel}`}
+              />
+            );
+          })}
+          {/* ─────────────────────────────────────────────────────────── */}
+
           {gridEnabled && widgetEditing && !runMode ? (
             <EditorGridOverlay size={gridSize} style={gridStyle} />
           ) : null}

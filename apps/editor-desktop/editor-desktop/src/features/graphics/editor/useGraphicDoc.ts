@@ -37,7 +37,7 @@ export type GraphicDoc = {
   devices: DeviceSummary[];
 
   selectGraphic: (id: string) => void;
-  createGraphic: (name: string, width: number, height: number) => Promise<void>;
+  createGraphic: (name: string, width: number, height: number, initialObjects?: any[], layoutPatch?: any) => Promise<void>;
   createHtmlGraphic: (name: string, width: number, height: number, externalPage: GraphicExternalPage) => Promise<void>;
   replaceHtmlGraphic: (externalPage: GraphicExternalPage) => Promise<void>;
   createGlbBuildingGraphic: (name: string, width: number, height: number, glbUrl: string) => Promise<void>;
@@ -51,6 +51,10 @@ export type GraphicDoc = {
   updateObject: (id: string, patch: Partial<GraphicObjectDefinition>) => void;
   removeObject: (id: string) => void;
   patchLayout: (patch: Partial<GraphicLayout>) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 };
 
 function genId(prefix: string) {
@@ -69,6 +73,9 @@ export function useGraphicDoc(): GraphicDoc {
   const [objects, setObjectsState] = useState<GraphicObjectDefinition[]>([]);
   const [dirty, setDirty] = useState(false);
 
+  const [history, setHistory] = useState<GraphicObjectDefinition[][]>([]);
+  const historyIndexRef = useRef<number>(-1);
+
   const [tags, setTags] = useState<TagSummary[]>([]);
   const [devices, setDevices] = useState<DeviceSummary[]>([]);
 
@@ -80,13 +87,28 @@ export function useGraphicDoc(): GraphicDoc {
     [graphics, selectedId],
   );
 
+  const pushToHistory = useCallback((nextObjects: GraphicObjectDefinition[]) => {
+    setHistory((prev) => {
+      const nextIdx = historyIndexRef.current + 1;
+      const nextHistory = prev.slice(0, nextIdx);
+      nextHistory.push(nextObjects);
+      historyIndexRef.current = nextIdx;
+      return nextHistory;
+    });
+  }, []);
+
   const loadObjectsFor = useCallback((g: GraphicSummary | null) => {
     if (!g) {
       setObjectsState([]);
+      setHistory([]);
+      historyIndexRef.current = -1;
       return;
     }
     const layout = normalizeGraphicLayout(g.layout);
-    setObjectsState(layout.objects ?? []);
+    const initialObjects = layout.objects ?? [];
+    setObjectsState(initialObjects);
+    setHistory([initialObjects]);
+    historyIndexRef.current = 0;
     setDirty(false);
   }, []);
 
@@ -140,7 +162,7 @@ export function useGraphicDoc(): GraphicDoc {
   );
 
   const createGraphic = useCallback(
-    async (name: string, width: number, height: number) => {
+    async (name: string, width: number, height: number, initialObjects: any[] = [], layoutPatch?: any) => {
       setBusy(true);
       try {
         const created = await window.energylink.graphics.create({
@@ -153,7 +175,8 @@ export function useGraphicDoc(): GraphicDoc {
             backgroundColor: '#0f172a',
             backgroundImage: null,
             defaultCamera: 'flat',
-            objects: [],
+            objects: initialObjects,
+            ...layoutPatch,
           },
         });
         const list = await window.energylink.graphics.list();
@@ -340,23 +363,30 @@ export function useGraphicDoc(): GraphicDoc {
 
   const setObjects = useCallback((next: GraphicObjectDefinition[], markDirty = true) => {
     setObjectsState(next);
-    if (markDirty) setDirty(true);
-  }, []);
+    if (markDirty) {
+      setDirty(true);
+      pushToHistory(next);
+    }
+  }, [pushToHistory]);
 
   const addObject = useCallback((obj: GraphicObjectDefinition) => {
-    setObjectsState((prev) => [...prev, obj]);
+    setObjectsState((prev) => {
+      const next = [...prev, obj];
+      pushToHistory(next);
+      return next;
+    });
     setDirty(true);
-  }, []);
+  }, [pushToHistory]);
 
   const updateObject = useCallback((id: string, patch: Partial<GraphicObjectDefinition>) => {
-    setObjectsState((prev) =>
-      prev.map((o) => {
+    setObjectsState((prev) => {
+      const next = prev.map((o) => {
         if (o.id !== id) return o;
-        const next: GraphicObjectDefinition = { ...o, ...patch };
+        const nextObj: GraphicObjectDefinition = { ...o, ...patch };
         if (patch.style) {
-          next.style = { ...o.style, ...patch.style };
+          nextObj.style = { ...o.style, ...patch.style };
         }
-        if (o.type === 'polygon' && next.style && patch.style?.polygonPoints === undefined) {
+        if (o.type === 'polygon' && nextObj.style && patch.style?.polygonPoints === undefined) {
           const nx = typeof patch.x === 'number' ? patch.x : o.x;
           const ny = typeof patch.y === 'number' ? patch.y : o.y;
           const dx = nx - o.x;
@@ -364,23 +394,29 @@ export function useGraphicDoc(): GraphicDoc {
           if (dx !== 0 || dy !== 0) {
             const pts = parsePolygonPointString(o.style?.polygonPoints);
             if (pts.length >= 3) {
-              next.style = {
-                ...next.style,
+              nextObj.style = {
+                ...nextObj.style,
                 polygonPoints: formatPolygonPointString(translatePolygonPoints(pts, dx, dy)),
               };
             }
           }
         }
-        return next;
-      }),
-    );
+        return nextObj;
+      });
+      pushToHistory(next);
+      return next;
+    });
     setDirty(true);
-  }, []);
+  }, [pushToHistory]);
 
   const removeObject = useCallback((id: string) => {
-    setObjectsState((prev) => prev.filter((o) => o.id !== id));
+    setObjectsState((prev) => {
+      const next = prev.filter((o) => o.id !== id);
+      pushToHistory(next);
+      return next;
+    });
     setDirty(true);
-  }, []);
+  }, [pushToHistory]);
 
   const patchLayout = useCallback((patch: Partial<GraphicLayout>) => {
     const id = selectedIdRef.current;
@@ -390,6 +426,27 @@ export function useGraphicDoc(): GraphicDoc {
     );
     setDirty(true);
   }, []);
+
+  const undo = useCallback(() => {
+    if (historyIndexRef.current > 0) {
+      const nextIdx = historyIndexRef.current - 1;
+      historyIndexRef.current = nextIdx;
+      setObjectsState(history[nextIdx] ?? []);
+      setDirty(true);
+    }
+  }, [history]);
+
+  const redo = useCallback(() => {
+    if (historyIndexRef.current < history.length - 1) {
+      const nextIdx = historyIndexRef.current + 1;
+      historyIndexRef.current = nextIdx;
+      setObjectsState(history[nextIdx] ?? []);
+      setDirty(true);
+    }
+  }, [history]);
+
+  const canUndo = historyIndexRef.current > 0;
+  const canRedo = historyIndexRef.current < history.length - 1;
 
   // silence unused warning for genId (kept for potential duplicate action)
   void genId;
@@ -421,5 +478,9 @@ export function useGraphicDoc(): GraphicDoc {
     updateObject,
     removeObject,
     patchLayout,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }
